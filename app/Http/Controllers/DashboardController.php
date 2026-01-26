@@ -334,9 +334,10 @@ class DashboardController extends Controller
 
     private function getDeptChartData()
     {
-        $data = PurchaseRequisition::select('department', DB::raw('count(*) as total'))
-            ->whereNotNull('department')
-            ->groupBy('department')
+        // Use purchasing_group as 'Department' per user request
+        $data = PurchaseRequisition::select('purchasing_group as department', DB::raw('count(*) as total'))
+            ->whereNotNull('purchasing_group')
+            ->groupBy('purchasing_group')
             ->orderBy('total', 'desc')
             ->limit(10)
             ->get();
@@ -396,8 +397,8 @@ class DashboardController extends Controller
             'po_number' => $pr->po_number,
             'mitigation_reason' => $pr->mitigation_reason,
             'mitigation_status' => $pr->mitigation_status ?? 'open',
-            'days_overdue' => $pr->req_date ? $pr->req_date->diffInDays(now()) : 0,
-            'status' => $pr->po_number ? 'processed' : ($pr->req_date && $pr->req_date->diffInDays(now()) > 14 ? 'overdue' : 'pending'),
+            'days_overdue' => $pr->req_date ? floor($pr->req_date->diffInDays(now())) : 0,
+            'status' => $pr->po_number ? 'processed' : ($pr->req_date && floor($pr->req_date->diffInDays(now())) > 14 ? 'overdue' : 'pending'),
             'comments' => $pr->comments->map(function($c) {
                 return [
                     'id' => $c->id,

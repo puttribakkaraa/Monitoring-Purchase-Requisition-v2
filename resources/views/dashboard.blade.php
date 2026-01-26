@@ -61,72 +61,33 @@
             transition: background-color 0.3s, color 0.3s;
         }
 
-        /* ===== SIDEBAR ===== */
-        .sidebar {
-            width: 220px;
-            background-color: var(--bg-card);
-            border-right: 1px solid var(--border);
-            padding: 1.5rem 1rem;
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            height: 100vh;
-            transition: background-color 0.3s;
+        /* ===== MAIN LAYOUT ===== */
+        .main-content {
+            flex: 1;
+            padding: 1.5rem 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
         }
-        .logo {
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 2rem;
+
+        /* Top Bar Style (for Logo/Nav if needed, or just Header) */
+        
+        .btn-theme-toggle {
             display: flex;
             align-items: center;
             gap: 0.5rem;
-        }
-        .logo i { color: var(--accent-primary); font-size: 1.5rem; }
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.65rem 0.9rem;
-            color: var(--text-secondary);
-            text-decoration: none;
-            border-radius: 0.5rem;
-            transition: all 0.3s;
-            margin-bottom: 0.35rem;
-            font-size: 0.9rem;
-        }
-        .nav-item:hover, .nav-item.active {
-            background-color: var(--accent-primary);
-            color: white;
-            box-shadow: 0 4px 12px var(--accent-glow);
-        }
-
-        /* Theme Toggle in Sidebar */
-        .theme-toggle {
-            margin-top: auto;
-            padding: 0.65rem 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            background: var(--bg-card-hover);
-            border-radius: 0.5rem;
-            cursor: pointer;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-card);
             border: 1px solid var(--border);
-            transition: all 0.3s;
+            border-radius: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
         }
-        .theme-toggle:hover {
-            color: var(--text-primary);
+        .btn-theme-toggle:hover {
             border-color: var(--accent-primary);
-        }
-        .theme-toggle i { font-size: 1.1rem; }
-
-        /* ===== MAIN CONTENT ===== */
-        .main-content {
-            margin-left: 220px;
-            flex: 1;
-            padding: 1.5rem 2rem;
+            color: var(--text-primary);
         }
 
         .header {
@@ -552,33 +513,6 @@
     </style>
 </head>
 <body>
-    <div class="sidebar">
-        <div class="logo">
-            <i class="ph ph-chart-polar"></i>
-            <span>Monitoring</span>
-        </div>
-        <nav>
-            <a href="#" class="nav-item active">
-                <i class="ph ph-squares-four"></i> Dashboard
-            </a>
-            <a href="#" class="nav-item">
-                <i class="ph ph-list-dashes"></i> Requisitions
-            </a>
-            <a href="#" class="nav-item">
-                <i class="ph ph-chart-bar"></i> Analytics
-            </a>
-            <a href="#" class="nav-item">
-                <i class="ph ph-gear"></i> Settings
-            </a>
-        </nav>
-        
-        <!-- Theme Toggle -->
-        <button class="theme-toggle" onclick="toggleTheme()">
-            <i class="ph ph-sun" id="themeIcon"></i>
-            <span id="themeText">Light Mode</span>
-        </button>
-    </div>
-
     <div class="main-content">
         <!-- Alerts -->
         @if(session('success'))
@@ -604,20 +538,37 @@
 
         <div class="header">
             <div>
-                <h1>Dashboard Overview</h1>
-                <p style="color: var(--text-secondary); font-size: 0.85rem;">Real-time monitoring of PR to PO conversion</p>
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="ph ph-chart-polar" style="font-size: 1.75rem; color: var(--accent-primary);"></i>
+                    <div>
+                        <h1 style="margin:0; font-size: 1.5rem;">Monitoring Dashboard</h1>
+                        <p style="color: var(--text-secondary); font-size: 0.85rem; margin:0;">Real-time PR to PO conversion tracking</p>
+                    </div>
+                </div>
             </div>
             
             <div style="display: flex; align-items: center; gap: 1rem;">
+                <!-- Theme Toggle -->
+                <button class="btn-theme-toggle" onclick="toggleTheme()" title="Switch Theme">
+                    <i class="ph ph-sun" id="themeIcon"></i>
+                    <span id="themeText">Light Mode</span>
+                </button>
+
                 <!-- Import Action -->
                 <form action="{{ route('import') }}" method="POST" enctype="multipart/form-data" id="importForm">
                     @csrf
                     <input type="file" name="file" id="fileInput" accept=".xlsx, .xls, .csv, .html, .mhtml" style="display: none;" onchange="this.form.submit()">
-                    <button type="button" onclick="document.getElementById('fileInput').click()" class="btn btn-outline">
+                    <button type="button" onclick="document.getElementById('fileInput').click()" class="btn btn-outline" title="Sync SAP Data">
                         <i class="ph ph-file-arrow-up" style="color: var(--success);"></i>
-                        Import SAP
+                        <span style="display: none; @media(min-width: 1024px){ display: inline; }">Sync SAP</span>
                     </button>
                 </form>
+
+                <!-- Requestor View Link -->
+                <a href="{{ route('requestor.login') }}" class="btn btn-outline" title="Requestor View">
+                    <i class="ph ph-users"></i>
+                    <span style="display: none; @media(min-width: 1024px){ display: inline; }">Requestor View</span>
+                </a>
 
                 <div class="user-profile">
                     <i class="ph ph-bell" style="font-size: 1.25rem; color: var(--text-secondary); cursor: pointer;"></i>
@@ -707,7 +658,7 @@
                             @endphp
                             <tr>
                                 <td style="font-family: monospace; color: var(--accent-primary); font-weight: 500;">{{ $pr->pr_number }}</td>
-                                <td>{{ Str::limit($pr->department, 10) ?? '-' }}</td>
+                                <td>{{ $pr->purchasing_group ?? '-' }}</td>
                                 <td>{{ Str::limit($pr->short_text, 25) }}</td>
                                 <td>{{ $pr->req_date ? $pr->req_date->format('d.m.Y') : '-' }}</td>
                                 <td>
@@ -738,7 +689,7 @@
                 </table>
             </div>
             <div class="pagination">
-                {{ $requisitions->links('pagination::simple-default') }}
+                {{ $requisitions->links('vendor.pagination.custom') }}
             </div>
         </div>
     </div>
