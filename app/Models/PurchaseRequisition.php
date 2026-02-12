@@ -41,6 +41,7 @@ class PurchaseRequisition extends Model
         'mitigation_reason',
         'mitigation_status',
         'department',
+        'po_release_date',
     ];
 
     protected $casts = [

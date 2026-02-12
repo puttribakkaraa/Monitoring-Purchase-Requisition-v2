@@ -11,6 +11,8 @@ Route::get('/pr/{id}/details', [DashboardController::class, 'getPrDetails'])->na
 Route::post('/pr/{id}/mitigation', [DashboardController::class, 'updateMitigation'])->name('pr.mitigation');
 Route::post('/pr/{id}/comment', [DashboardController::class, 'addComment'])->name('pr.comment');
 Route::get('/pr/{id}/comments', [DashboardController::class, 'getComments'])->name('pr.comments');
+Route::post('/pr/{id}/convert', [DashboardController::class, 'convertToPo'])->name('pr.convert');
+Route::get('/api/timeline-data', [DashboardController::class, 'getTimelineData'])->name('api.timeline');
 
 // Requestor (User View) Routes
 Route::prefix('requestor')->name('requestor.')->group(function () {

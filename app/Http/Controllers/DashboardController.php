@@ -256,7 +256,7 @@ class DashboardController extends Controller
         );
     }
 
-    public function index()
+    public function index(Request $request)
     {
         // 1. Overall KPIs
         $totalPR = PurchaseRequisition::count();
@@ -280,29 +280,56 @@ class DashboardController extends Controller
             ->count();
 
         // 3. Lead Time Calculation (Avg days to process)
-        // DATEDIFF(po_date, req_date)
-        // We only calculate for those that have both dates.
-        if (config('database.default') === 'sqlite') {
-             // SQLite datediff syntax: julianday(po_date) - julianday(req_date)
-             $avgLeadTime = PurchaseRequisition::whereNotNull('po_date')
-                ->whereNotNull('req_date')
-                ->selectRaw('AVG(julianday(po_date) - julianday(req_date)) as avg_days')
-                ->value('avg_days');
-        } else {
-             // MySQL/Postgres
-             $avgLeadTime = PurchaseRequisition::whereNotNull('po_date')
-                ->whereNotNull('req_date')
-                ->selectRaw('AVG(DATEDIFF(po_date, req_date)) as avg_days')
-                ->value('avg_days');
-        }
-        $avgLeadTime = round($avgLeadTime ?? 0, 1);
+        // Logic: Same as chart - use po_release_date if available, else po_date.
+        // Since we need complex coalescing logic that might differ across DBs or use manual columns,
+        // and we already load the model, we can do this in PHP or raw SQL.
+        // For consistency and simplicity with the small dataset assumption:
+        
+        $completedPRs = PurchaseRequisition::where(function($q) {
+             $q->whereNotNull('po_date')->orWhereNotNull('po_release_date');
+        })->whereNotNull('req_date')->get();
 
-        // 4. Detailed Data for Table (Paginated) - Only show PRs without PO
-        $requisitions = PurchaseRequisition::where(function($q) {
-                $q->whereNull('po_number')->orWhere('po_number', '');
-            })
-            ->orderBy('req_date', 'desc')
-            ->paginate(20);
+        $totalLeadTime = 0;
+        $count = 0;
+
+        foreach ($completedPRs as $pr) {
+            $end = $pr->po_release_date ?? $pr->po_date;
+            if ($end) {
+                 $endDate = is_string($end) ? Carbon::parse($end) : $end;
+                 $days = $pr->req_date->floatDiffInDays($endDate);
+                 if ($days >= 0) {
+                     $totalLeadTime += $days;
+                     $count++;
+                 }
+            }
+        }
+
+        $avgLeadTime = $count > 0 ? round($totalLeadTime / $count, 1) : 0;
+
+        // 4. Detailed Data for Table (Paginated)
+        // CHECK SEARCH QUERY
+        $search = $request->input('search');
+
+        if ($search) {
+            // Search Mode: Find ANY PR matching PO Number or Department
+            // We do NOT limit to 'pending' only, as user might search for a closed PO.
+            $requisitions = PurchaseRequisition::where(function($q) use ($search) {
+                    $q->where('po_number', 'like', "%{$search}%")
+                      ->orWhere('department', 'like', "%{$search}%")
+                      ->orWhere('purchasing_group', 'like', "%{$search}%") // Added this
+                      ->orWhere('pr_number', 'like', "%{$search}%"); 
+                })
+                ->orderBy('req_date', 'desc')
+                ->paginate(20)
+                ->appends(['search' => $search]); // Preserve query in pagination links
+        } else {
+            // Default Mode: Show Pending PRs (No PO)
+            $requisitions = PurchaseRequisition::where(function($q) {
+                    $q->whereNull('po_number')->orWhere('po_number', '');
+                })
+                ->orderBy('req_date', 'desc')
+                ->paginate(20);
+        }
 
         // One-time Seed: Populate department if largely empty (for visualization)
         if (PurchaseRequisition::count() > 0 && PurchaseRequisition::whereNull('department')->count() > 100) {
@@ -320,6 +347,13 @@ class DashboardController extends Controller
         // 5. Chart Data: Monthly PR vs PO
         $chartData = $this->getChartData();
 
+        // 7. Notifications (Latest 5)
+        // Assuming we are showing system-wide notifications or for the first user
+        // If there's auth, we should use auth()->user()->unreadNotifications
+        $user = \App\Models\User::first();
+        $notifications = $user ? $user->notifications()->latest()->take(5)->get() : collect([]);
+        $unreadCount = $user ? $user->unreadNotifications->count() : 0;
+
         return view('dashboard', compact(
             'totalPR', 
             'processedPO', 
@@ -328,7 +362,9 @@ class DashboardController extends Controller
             'avgLeadTime', 
             'requisitions',
             'chartData',
-            'deptChartData'
+            'deptChartData',
+            'notifications',
+            'unreadCount'
         ));
     }
 
@@ -473,6 +509,153 @@ class DashboardController extends Controller
                     'created_at' => $c->created_at->format('d M Y H:i'),
                 ];
             }),
+        ]);
+    }
+    public function convertToPo(Request $request, $id)
+    {
+        $request->validate([
+            'po_number' => 'required|string|max:255',
+        ]);
+
+        $pr = PurchaseRequisition::findOrFail($id);
+        
+        $pr->update([
+            'po_number' => $request->po_number,
+            'po_release_date' => now(),
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'PR converted to PO successfully!']);
+    }
+
+    public function getTimelineData()
+    {
+        // Fetch ALL PRs to calculate stage averages independently
+        $prs = PurchaseRequisition::with('comments')->get();
+        
+        $durations = [
+            'feedback' => [], // Created -> First Comment
+            'response' => [], // First Comment -> Second Comment
+            'release' => []   // Second Comment (or Created) -> PO Release
+        ];
+
+        foreach ($prs as $pr) {
+            $created = $pr->req_date;
+            // Get comments sorted by date (already sorted in relation)
+            $comments = $pr->comments; 
+            
+            $firstComment = $comments->first();
+            $secondComment = $comments->count() > 1 ? $comments->get(1) : null;
+            $released = $pr->po_release_date ?? $pr->po_date; 
+
+            // 1. Created -> Feedback
+            if ($firstComment && $created) {
+                // Use floatDiffInDays to capture partial days (e.g. 0.5 days)
+                $days = $created->floatDiffInDays($firstComment->created_at);
+                if ($days >= 0) $durations['feedback'][] = $days;
+            }
+
+            // 2. Feedback -> Response
+            if ($firstComment && $secondComment) {
+                // Use floatDiffInDays for same-day responses
+                $days = $firstComment->created_at->floatDiffInDays($secondComment->created_at);
+                if ($days >= 0) $durations['response'][] = $days;
+            }
+
+            // 3. Response -> Released
+            if ($released) {
+                // User wants only PRs with chat interactions.
+                // So strictly look for 2nd comment (Response) or 1st comment (Feedback).
+                // If NO comments exist, we do NOT count this towards the average.
+                
+                $startPoint = $secondComment ? $secondComment->created_at : 
+                             ($firstComment ? $firstComment->created_at : null); 
+                
+                if ($startPoint) {
+                    $releaseDate = is_string($released) ? Carbon::parse($released) : $released;
+                    if ($releaseDate >= $startPoint) {
+                        $durations['release'][] = $startPoint->floatDiffInDays($releaseDate);
+                    }
+                }
+            }
+        }
+
+        // Calculate Averages based on OCCURRENCE (Specific Count)
+        // This answers: information "When X happens, how long does it take?"
+        // We filter strictly for PRs that had the specific interaction.
+
+        $avgFeedback = count($durations['feedback']) > 0 ? array_sum($durations['feedback']) / count($durations['feedback']) : 0;
+        $avgResponse = count($durations['response']) > 0 ? array_sum($durations['response']) / count($durations['response']) : 0;
+        $avgRelease = count($durations['release']) > 0 ? array_sum($durations['release']) / count($durations['release']) : 0;
+
+        // --- New: Custom Lead Time Trend (2024, 2025, 2026 Monthly) ---
+        $trendDates = [];
+        $trendValues = [];
+
+        // Define the buckets we want
+        $buckets = [
+            '2024' => ['start' => '2024-01-01', 'end' => '2024-12-31'],
+            '2025' => ['start' => '2025-01-01', 'end' => '2025-12-31'],
+        ];
+        
+        // Add months for 2026 (Jan to Dec)
+        for ($m = 1; $m <= 12; $m++) {
+            $date = Carbon::create(2026, $m, 1);
+            $buckets[$date->format('M 26')] = [
+                'start' => $date->startOfMonth()->toDateString(),
+                'end' => $date->endOfMonth()->toDateString()
+            ];
+        }
+
+        // Fetch ALL relevant PRs to process in PHP (simpler than complex SQL union)
+        // We need PRs completed since 2024-01-01
+        $allPrs = PurchaseRequisition::select('req_date', 'po_date', 'po_release_date')
+            ->where(function($query) {
+                $query->where('po_release_date', '>=', '2024-01-01')
+                      ->orWhere('po_date', '>=', '2024-01-01');
+            })
+            ->get();
+
+        foreach ($buckets as $label => $range) {
+            $trendDates[] = $label;
+            
+            $totalDays = 0;
+            $count = 0;
+
+            foreach ($allPrs as $pr) {
+                $end = $pr->po_release_date ?? $pr->po_date;
+                
+                if ($end) {
+                    $endDate = is_string($end) ? Carbon::parse($end) : $end;
+                    
+                    // Check if this PR belongs in this bucket
+                    if ($endDate->between($range['start'], $range['end'])) {
+                         if ($pr->req_date) {
+                             $diff = $pr->req_date->floatDiffInDays($endDate);
+                             if ($diff >= 0) {
+                                 $totalDays += $diff;
+                                 $count++;
+                             }
+                        }
+                    }
+                }
+            }
+            
+            $trendValues[] = $count > 0 ? round($totalDays / $count, 1) : 0;
+        }
+
+        return response()->json([
+            'timeline' => [
+                'labels' => ['PR Creation -> Feedback', 'Feedback -> Response', 'Response -> PO Release'],
+                'data' => [
+                    round($avgFeedback),
+                    round($avgResponse),
+                    round($avgRelease)
+                ]
+            ],
+            'trend' => [
+                'labels' => $trendDates,
+                'data' => $trendValues
+            ]
         ]);
     }
 }

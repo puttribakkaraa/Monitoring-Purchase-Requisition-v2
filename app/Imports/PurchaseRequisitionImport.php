@@ -67,6 +67,7 @@ class PurchaseRequisitionImport implements ToCollection
     {
         // Normalize keys
         $prNumber = $row['purch_req'] ?? $row['purchreq'] ?? $row['pr_number'] ?? $row['pr_no'] ?? null;
+        $itemNumber = $row['item'] ?? $row['item_no'] ?? 10;
 
         // Skip invalid rows
         if (empty($prNumber) || !is_numeric($prNumber)) {
@@ -76,17 +77,40 @@ class PurchaseRequisitionImport implements ToCollection
         // Try to parse dates
         $reqDate = $this->parseDate($row['requisn_date'] ?? $row['req_date'] ?? $row['requisition_date'] ?? null);
         $poDate = $this->parseDate($row['po_date'] ?? $row['p_o_date'] ?? null);
+        
+        // Check for Status Change (Notification Trigger)
+        // logic: If PR exists AND had NO PO, but NOW has PO -> Notify
+        $poNumber = $row['po'] ?? $row['p_o'] ?? $row['po_number'] ?? null;
+        
+        if ($poNumber) {
+            $existingPr = PurchaseRequisition::where('pr_number', $prNumber)
+                ->where('item_number', $itemNumber)
+                ->first();
+
+            // If PR exists and previously had no PO
+            if ($existingPr && empty($existingPr->po_number)) {
+                // Trigger Notification
+                $user = \App\Models\User::first();
+                if ($user) {
+                    $user->notify(new \App\Notifications\PrConvertedToPoNotification([
+                        'pr_number' => $prNumber,
+                        'po_number' => $poNumber,
+                        'po_date' => $poDate ? $poDate->format('Y-m-d') : date('Y-m-d'),
+                    ]));
+                }
+            }
+        }
 
         // Map data
         PurchaseRequisition::updateOrCreate(
             [
                 'pr_number' => $prNumber,
-                'item_number' => $row['item'] ?? $row['item_no'] ?? 10,
+                'item_number' => $itemNumber,
             ],
             [
                 'requisitioner' => $row['requisn_name'] ?? $row['requisitioner'] ?? $row['name_of_requisitioner'] ?? $row['requisnr'] ?? null,
                 'short_text' => $row['short_text'] ?? $row['text'] ?? $row['description'] ?? null,
-                'po_number' => $row['po'] ?? $row['p_o'] ?? $row['po_number'] ?? null,
+                'po_number' => $poNumber,
                 'material' => $row['material'] ?? null,
                 'purchasing_group' => $row['purch_grp'] ?? $row['purchgrp'] ?? $row['grp'] ?? $row['pgr'] ?? null,
                 'purchasing_org' => $row['purch_org'] ?? $row['purchorg'] ?? $row['org'] ?? $row['porg'] ?? null,

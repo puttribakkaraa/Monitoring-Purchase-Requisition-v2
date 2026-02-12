@@ -100,14 +100,23 @@ class RequestorController extends Controller
         }
 
         $labels = $months->map(fn($m) => $m->format('M Y'));
-        $volumeData = [];
+        $prData = [];
+        $poData = [];
 
         foreach ($months as $month) {
-            $count = PurchaseRequisition::where('purchasing_group', $dept)
+            $prCount = PurchaseRequisition::where('purchasing_group', $dept)
                 ->whereYear('req_date', $month->year)
                 ->whereMonth('req_date', $month->month)
                 ->count();
-            $volumeData[] = $count;
+            
+            $poCount = PurchaseRequisition::where('purchasing_group', $dept)
+                ->whereNotNull('po_date')
+                ->whereYear('po_date', $month->year)
+                ->whereMonth('po_date', $month->month)
+                ->count();
+
+            $prData[] = $prCount;
+            $poData[] = $poCount;
         }
 
         // B. Status Distribution
@@ -125,7 +134,8 @@ class RequestorController extends Controller
 
         return [
             'months' => $labels,
-            'volume' => $volumeData,
+            'pr' => $prData,
+            'po' => $poData,
             'status' => [$processed, $pending, $overdue] // Processed, Pending, Overdue
         ];
     }

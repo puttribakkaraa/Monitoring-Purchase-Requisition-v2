@@ -209,7 +209,7 @@
         <div class="header">
             <div>
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <i class="ph ph-chart-polar" style="font-size: 1.75rem; color: var(--accent-primary);"></i>
+                    <img src="{{ asset('images/logomtmfix.png') }}" alt="MTM Logo" style="height: 50px; width: auto; border-radius: 8px;">
                     <div>
                         <h1 style="margin:0; font-size: 1.5rem;">Requestor Dashboard</h1>
                         <p style="color: var(--text-secondary); font-size: 0.85rem; margin:0;">
@@ -258,6 +258,46 @@
                 <div class="kpi-title">Pending</div>
                 <div class="kpi-value" style="color: var(--warning);">{{ number_format($stats['pending']) }}</div>
                 <div class="kpi-icon" style="color: var(--warning);"><i class="ph ph-clock"></i></div>
+            </div>
+        </div>
+
+        <!-- Charts Row 1: Volume & Status -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>Your Requisition Volume</h3>
+                </div>
+                <div style="height: 250px;">
+                    <canvas id="volumeChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>Status Distribution</h3>
+                </div>
+                <div style="height: 250px;">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 2: Timeline & Trend -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>PR Process Timeline (Global Average)</h3>
+                </div>
+                <div style="height: 250px;">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>Average Lead Time Trend (Global)</h3>
+                </div>
+                <div style="height: 250px;">
+                    <canvas id="trendChart"></canvas>
+                </div>
             </div>
         </div>
 
@@ -370,6 +410,14 @@
                 <div class="chat-section">
                     <h4><i class="ph ph-chats"></i> Log Komentar</h4>
                     <div id="chatMessages" class="chat-messages" style="max-height: 250px;"></div>
+                    
+                    <div class="chat-input" style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <input type="text" id="authorName" placeholder="Nama Anda" style="width: 120px; padding: 0.5rem; border: 1px solid var(--border); border-radius: 0.35rem; background: var(--bg-body); color: var(--text-primary);">
+                        <input type="text" id="commentMessage" placeholder="Tulis komentar..." style="flex: 1; padding: 0.5rem; border: 1px solid var(--border); border-radius: 0.35rem; background: var(--bg-body); color: var(--text-primary);">
+                        <button class="btn btn-primary" onclick="sendComment()">
+                            <i class="ph ph-paper-plane-tilt"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -477,6 +525,243 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // ===== CHARTS =====
+        let volumeChart = null;
+        let statusChart = null;
+        let timelineChart = null;
+        let trendChart = null;
+
+        // Initialize theme and charts
+        document.addEventListener('DOMContentLoaded', function() {
+            createCharts();
+        });
+
+        function getChartColors(theme) {
+            return {
+                grid: theme === 'dark' ? '#334155' : '#e2e8f0',
+                text: theme === 'dark' ? '#94a3b8' : '#64748b',
+                legend: theme === 'dark' ? '#f8fafc' : '#1e293b'
+            };
+        }
+
+        function createCharts() {
+            const theme = getTheme();
+            const colors = getChartColors(theme);
+
+            // 1. Volume Chart
+            const ctxVolume = document.getElementById('volumeChart').getContext('2d');
+            volumeChart = new Chart(ctxVolume, {
+                type: 'bar',
+                data: {
+                    labels: @json($chartData['months']),
+                    datasets: [
+                        {
+                            label: 'PR Created',
+                            data: @json($chartData['pr']),
+                            backgroundColor: '#6366f1',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'PO Created',
+                            data: @json($chartData['po']),
+                            backgroundColor: '#10b981',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: colors.grid },
+                            ticks: { color: colors.text }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: colors.text }
+                        }
+                    },
+                    plugins: {
+                        legend: { labels: { color: colors.legend } }
+                    }
+                }
+            });
+
+            // 2. Status Distribution (Doughnut)
+            const ctxStatus = document.getElementById('statusChart').getContext('2d');
+            statusChart = new Chart(ctxStatus, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Processed', 'Pending', 'Overdue'],
+                    datasets: [{
+                        data: @json($chartData['status']),
+                        backgroundColor: [
+                            '#10b981', // Green
+                            '#f59e0b', // Yellow
+                            '#ef4444'  // Red
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { color: colors.legend } }
+                    }
+                }
+            });
+
+            // 3 & 4. Timeline & Trend (API)
+            fetch('{{ route("api.timeline") }}')
+                .then(res => res.json())
+                .then(apiData => {
+                    const timelineData = apiData.timeline;
+                    const trendData = apiData.trend;
+
+                    // Timeline Chart
+                    const ctxTimeline = document.getElementById('timelineChart').getContext('2d');
+                    timelineChart = new Chart(ctxTimeline, {
+                        type: 'bar',
+                        data: {
+                            labels: timelineData.labels,
+                            datasets: [{
+                                label: 'Average Days',
+                                data: timelineData.data,
+                                backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                                borderColor: '#6366f1',
+                                borderWidth: 1,
+                                borderRadius: 4,
+                                barPercentage: 0.6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: colors.grid },
+                                    ticks: { color: colors.text }
+                                },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: colors.text }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false }
+                            }
+                        }
+                    });
+
+                    // Trend Chart
+                    const ctxTrend = document.getElementById('trendChart').getContext('2d');
+                    trendChart = new Chart(ctxTrend, {
+                        type: 'bar',
+                        data: {
+                            labels: trendData.labels,
+                            datasets: [{
+                                label: 'Avg Lead Time (Days)',
+                                data: trendData.data,
+                                backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                                borderRadius: 4,
+                                barPercentage: 0.6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: colors.grid },
+                                    ticks: { color: colors.text }
+                                },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: colors.text }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false }
+                            }
+                        }
+                    });
+                });
+        }
+
+        function updateCharts(theme) {
+            if (!volumeChart || !statusChart) return;
+            
+            const colors = getChartColors(theme);
+            
+            volumeChart.options.scales.y.grid.color = colors.grid;
+            volumeChart.options.scales.y.ticks.color = colors.text;
+            volumeChart.options.scales.x.ticks.color = colors.text;
+            volumeChart.options.plugins.legend.labels.color = colors.legend;
+            volumeChart.update();
+
+            statusChart.options.plugins.legend.labels.color = colors.legend;
+            statusChart.update();
+
+            if (timelineChart) {
+                timelineChart.options.scales.x.grid.color = colors.grid;
+                timelineChart.options.scales.x.ticks.color = colors.text;
+                timelineChart.options.scales.y.ticks.color = colors.text;
+                timelineChart.update();
+            }
+
+            if (trendChart) {
+                trendChart.options.scales.x.grid.color = colors.grid;
+                trendChart.options.scales.x.ticks.color = colors.text;
+                trendChart.options.scales.y.ticks.color = colors.text;
+                trendChart.update();
+            }
+        }
+
+        function sendComment() {
+            if (!currentPrId) return;
+
+            const authorName = document.getElementById('authorName').value;
+            const message = document.getElementById('commentMessage').value;
+
+            if (!authorName || !message) {
+                alert('Please fill in both Name and Message');
+                return;
+            }
+
+            fetch(`/pr/${currentPrId}/comment`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    author_name: authorName,
+                    message: message
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('commentMessage').value = '';
+                    // Reload comments
+                    fetch(`/pr/${currentPrId}/comments`)
+                        .then(res => res.json())
+                        .then(data => renderComments(data.comments));
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('An error occurred');
+            });
         }
     </script>
 </body>

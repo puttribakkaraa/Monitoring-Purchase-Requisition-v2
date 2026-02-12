@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Purchase Requisition Monitor</title>
+    <title>Purchase Requisition Monitoring</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -510,6 +510,91 @@
             font-size: 0.8rem;
             padding: 1rem;
         }
+
+        /* ===== NOTIFICATIONS ===== */
+        .notification-wrapper {
+            position: relative;
+            cursor: pointer;
+        }
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--danger);
+            color: white;
+            font-size: 0.65rem;
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid var(--bg-body);
+        }
+        .notification-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            width: 320px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px var(--shadow);
+            z-index: 1000;
+            display: none;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        .notification-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .notification-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .notification-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 0.75rem;
+            transition: background-color 0.2s;
+        }
+        .notification-item:hover {
+            background: var(--bg-card-hover);
+        }
+        .notification-item.unread {
+            background: rgba(99, 102, 241, 0.05);
+        }
+        .notification-icon {
+            color: var(--success);
+            font-size: 1.25rem;
+            margin-top: 0.1rem;
+        }
+        .notification-content {
+            flex: 1;
+        }
+        .notification-message {
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            line-height: 1.4;
+            margin-bottom: 0.25rem;
+        }
+        .notification-time {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+        .notification-empty {
+            padding: 2rem;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
     </style>
 </head>
 <body>
@@ -539,7 +624,7 @@
         <div class="header">
             <div>
                 <div style="display: flex; align-items: center; gap: 0.75rem;">
-                    <i class="ph ph-chart-polar" style="font-size: 1.75rem; color: var(--accent-primary);"></i>
+                    <img src="{{ asset('images/logomtmfix.png') }}" alt="MTM Logo" style="height: 30px; width: auto; border-radius: 8px;">
                     <div>
                         <h1 style="margin:0; font-size: 1.5rem;">Monitoring Dashboard</h1>
                         <p style="color: var(--text-secondary); font-size: 0.85rem; margin:0;">Real-time PR to PO conversion tracking</p>
@@ -571,7 +656,44 @@
                 </a>
 
                 <div class="user-profile">
-                    <i class="ph ph-bell" style="font-size: 1.25rem; color: var(--text-secondary); cursor: pointer;"></i>
+                    <!-- Notification Bell -->
+                    <div class="notification-wrapper" onclick="toggleNotifications()">
+                        <i class="ph ph-bell" style="font-size: 1.25rem; color: var(--text-secondary);"></i>
+                        @if(isset($unreadCount) && $unreadCount > 0)
+                            <div class="notification-badge">{{ $unreadCount > 9 ? '9+' : $unreadCount }}</div>
+                        @endif
+                        
+                        <!-- Dropdown -->
+                        <div class="notification-dropdown" id="notificationDropdown">
+                            <div class="notification-header">
+                                <span>Notifications</span>
+                                @if(isset($unreadCount) && $unreadCount > 0)
+                                    <span style="font-size: 0.7rem; color: var(--accent-primary); cursor: pointer;">Mark all read</span>
+                                @endif
+                            </div>
+                            <div class="notification-list">
+                                @if(isset($notifications) && count($notifications) > 0)
+                                    @foreach($notifications as $notification)
+                                        <div class="notification-item {{ $notification->read_at ? '' : 'unread' }}">
+                                            <div class="notification-icon">
+                                                <i class="ph ph-check-circle"></i>
+                                            </div>
+                                            <div class="notification-content">
+                                                <div class="notification-message">{{ $notification->data['message'] ?? 'Notification' }}</div>
+                                                <div class="notification-time">{{ $notification->created_at->diffForHumans() }}</div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                @else
+                                    <div class="notification-empty">
+                                        <i class="ph ph-bell-slash" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block;"></i>
+                                        No new notifications
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="avatar">PM</div>
                 </div>
             </div>
@@ -590,14 +712,14 @@
                 <div class="kpi-title">Processed (PO)</div>
                 <div class="kpi-value" style="color: var(--success);">{{ number_format($processedPO) }}</div>
                 <div class="kpi-icon" style="color: var(--success);"><i class="ph ph-check-circle"></i></div>
-                <div class="trend up"><i class="ph ph-check"></i> {{ $totalPR > 0 ? round(($processedPO / $totalPR) * 100) : 0 }}% converted</div>
+                <div class="trend up"><i class="ph ph-check"></i> {{ $totalPR > 0 ? round(($processedPO / $totalPR) * 100) : 0 }}% Success Rate</div>
             </div>
 
             <div class="kpi-card">
                 <div class="kpi-title">Overdue</div>
                 <div class="kpi-value" style="color: var(--danger);">{{ number_format($overduePR) }}</div>
                 <div class="kpi-icon" style="color: var(--danger);"><i class="ph ph-warning-circle"></i></div>
-                <div class="trend down"><i class="ph ph-clock"></i> > 14 days</div>
+                <div class="trend down"><i class="ph ph-warning"></i> {{ $totalPR > 0 ? round(($overduePR / $totalPR) * 100) : 0 }}% of Total</div>
             </div>
 
             <div class="kpi-card">
@@ -628,13 +750,52 @@
             </div>
         </div>
 
+        <!-- Timeline & Trend Charts -->
+        <div class="charts-section">
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>PR Process Timeline (Average Days)</h3>
+                </div>
+                <div style="height: 250px;">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3>Average Lead Time (PR -> PO)</h3>
+                </div>
+                <div style="height: 250px;">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+
         <!-- Pending Requisitions (No PO) -->
-        <div class="table-card">
-            <div class="table-header">
-                <h3><i class="ph ph-warning-circle" style="color: var(--warning);"></i> Pending Requisitions (Belum ada PO)</h3>
-                <button class="btn btn-primary">
-                    <i class="ph ph-list"></i> View All
-                </button>
+        <div class="table-card" id="pendingRequisitionsCard">
+            <div class="section-header" style="justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                <h3>
+                    @if(request('search'))
+                        <i class="ph ph-magnifying-glass" style="color: var(--accent-primary);"></i> Search Results
+                    @else
+                        <i class="ph ph-warning-circle" style="color: var(--warning);"></i> Pending Requisitions (Belum ada PO)
+                    @endif
+                </h3>
+                
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <form action="{{ route('dashboard') }}" method="GET" style="display: flex; gap: 0.5rem;">
+                        <input type="text" name="search" placeholder="Search PO, Dept, or PR..." value="{{ request('search') }}" 
+                               style="padding: 0.5rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--bg-body); color: var(--text-primary); font-size: 0.85rem; width: 200px;">
+                        <button type="submit" class="btn btn-primary" style="padding: 0.5rem 0.75rem;">
+                            <i class="ph ph-magnifying-glass"></i>
+                        </button>
+                    </form>
+                    
+                    @if(request('search'))
+                        <a href="{{ route('dashboard') }}" class="btn btn-outline" style="padding: 0.5rem 0.75rem; text-decoration: none;">
+                            <i class="ph ph-x"></i> Clear
+                        </a>
+                    @endif
+                </div>
             </div>
             <div class="table-responsive">
                 <table>
@@ -667,7 +828,9 @@
                                     </span>
                                 </td>
                                 <td>
-                                    @if($isOverdue)
+                                    @if($pr->po_number)
+                                        <span class="status-badge status-processed">Processed</span>
+                                    @elseif($isOverdue)
                                         <span class="status-badge status-overdue">Overdue</span>
                                     @else
                                         <span class="status-badge status-pending">Pending</span>
@@ -679,9 +842,16 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <button type="button" class="btn-mitigate" data-pr-id="{{ $pr->id }}" title="Mitigasi">
-                                        <i class="ph ph-chat-circle-text"></i>
-                                    </button>
+                                    @if(!$pr->po_number)
+                                        <button type="button" class="btn-mitigate" data-pr-id="{{ $pr->id }}" title="Mitigasi">
+                                            <i class="ph ph-chat-circle-text"></i>
+                                        </button>
+                                        <button type="button" class="btn-mitigate" onclick="openConvertModal({{ $pr->id }}, '{{ $pr->pr_number }}')" title="Convert to PO" style="background: var(--success); margin-left: 5px;">
+                                            <i class="ph ph-check"></i>
+                                        </button>
+                                    @else
+                                        <span style="color: var(--success); font-size: 0.8rem;"><i class="ph ph-check-circle"></i> Done</span>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach
@@ -754,6 +924,33 @@
                 </div>
             </div>
         </div>
+        </div>
+    </div>
+
+    <!-- Convert PO Modal -->
+    <div id="convertModal" class="modal-overlay" style="display: none;">
+        <div class="modal-container" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3><i class="ph ph-check-circle"></i> Convert to PO</h3>
+                <button class="modal-close" onclick="closeConvertModal()">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                    Enter PO Number for PR: <span id="convertPrNumber" style="font-weight: bold; color: var(--text-primary);"></span>
+                </p>
+                <input type="hidden" id="convertPrId">
+                <div class="form-group" style="margin-bottom: 1rem;">
+                    <label style="display: block; font-size: 0.85rem; margin-bottom: 0.5rem;">PO Number</label>
+                    <input type="text" id="poNumberInput" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 0.35rem; background: var(--bg-body); color: var(--text-primary);">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                    <button class="btn btn-outline" onclick="closeConvertModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="submitPoConversion()">Convert & Release</button>
+                </div>
+            </div>
+        </div>
     </div>
 
 
@@ -776,6 +973,50 @@
             setTheme(current === 'dark' ? 'light' : 'dark');
         }
 
+        // Convert PO Functions
+        function openConvertModal(id, prNumber) {
+            document.getElementById('convertPrId').value = id;
+            document.getElementById('convertPrNumber').textContent = prNumber;
+            document.getElementById('convertModal').style.display = 'flex';
+        }
+
+        function closeConvertModal() {
+            document.getElementById('convertModal').style.display = 'none';
+            document.getElementById('poNumberInput').value = '';
+        }
+
+        function submitPoConversion() {
+            const id = document.getElementById('convertPrId').value;
+            const poNumber = document.getElementById('poNumberInput').value;
+
+            if (!poNumber) {
+                alert('Please enter a PO Number');
+                return;
+            }
+
+            fetch(`/pr/${id}/convert`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ po_number: poNumber })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Success! PR converted to PO.');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('An error occurred.');
+            });
+        }
+
         function updateThemeUI(theme) {
             const icon = document.getElementById('themeIcon');
             const text = document.getElementById('themeText');
@@ -789,8 +1030,12 @@
         }
 
         // ===== CHARTS =====
+        // ===== CHARTS =====
         let volumeChart = null;
+
         let statusChart = null;
+        let timelineChart = null;
+        let trendChart = null;
 
         // Initialize theme (before charts, but updateCharts will check if charts exist)
         document.documentElement.setAttribute('data-theme', getTheme());
@@ -810,6 +1055,34 @@
 
             // Volume Chart
             const ctxVolume = document.getElementById('volumeChart').getContext('2d');
+            const rates = @json($chartData['rates']); // Get rates from backend
+
+            // Custom Plugin for Percentage Labels
+            const volumePercentagePlugin = {
+                id: 'volumePercentagePlugin',
+                afterDraw: (chart) => {
+                    const ctx = chart.ctx;
+                    const xAxis = chart.scales.x;
+                    const ThemeColors = getChartColors(getTheme());
+                    
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.font = 'italic 10px Outfit'; 
+                    ctx.fillStyle = ThemeColors.text; 
+                    
+                    if (xAxis && xAxis.ticks) {
+                        xAxis.ticks.forEach((tick, index) => {
+                            if (rates[index] !== undefined) {
+                                const x = xAxis.getPixelForTick(index);
+                                const y = xAxis.bottom + 10; // Position below the label
+                                ctx.fillText(`(${rates[index]}%)`, x, y);
+                            }
+                        });
+                    }
+                    ctx.restore();
+                }
+            };
+
             volumeChart = new Chart(ctxVolume, {
                 type: 'bar',
                 data: {
@@ -832,6 +1105,11 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: {
+                        padding: {
+                            bottom: 20 // Make room for percentage text
+                        }
+                    },
                     scales: {
                         y: {
                             beginAtZero: true,
@@ -846,7 +1124,8 @@
                     plugins: {
                         legend: { labels: { color: colors.legend } }
                     }
-                }
+                },
+                plugins: [volumePercentagePlugin]
             });
 
             // Status Chart
@@ -886,6 +1165,108 @@
                     }
                 }
             });
+
+            // Timeline & Trend Charts
+            fetch('{{ route("api.timeline") }}')
+                .then(res => res.json())
+                .then(apiData => {
+                    const timelineData = apiData.timeline;
+                    const trendData = apiData.trend;
+
+                    // 1. Timeline Chart
+                    const ctxTimeline = document.getElementById('timelineChart').getContext('2d');
+                    timelineChart = new Chart(ctxTimeline, {
+                        type: 'bar',
+                        data: {
+                            labels: timelineData.labels,
+                            datasets: [{
+                                label: 'Average Days',
+                                data: timelineData.data,
+                                backgroundColor: [
+                                    'rgba(99, 102, 241, 0.5)', // Indigo
+                                    'rgba(245, 158, 11, 0.5)', // Amber
+                                    'rgba(16, 185, 129, 0.5)'  // Emerald
+                                ],
+                                borderColor: [
+                                    '#6366f1',
+                                    '#f59e0b',
+                                    '#10b981'
+                                ],
+                                borderWidth: 1,
+                                borderRadius: 4,
+                                barPercentage: 0.6,
+                                minBarLength: 5 // Ensure small values are visible
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: colors.grid },
+                                    ticks: { color: colors.text }
+                                },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: colors.text }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: { 
+                                        label: (c) => {
+                                            const val = c.parsed.y;
+                                            if (val > 0 && val < 1) {
+                                                const hours = Math.round(val * 24);
+                                                const mins = Math.round(val * 24 * 60);
+                                                if (hours < 1) return val + ' Days (~' + mins + ' Mins)';
+                                                return val + ' Days (~' + hours + ' Hours)';
+                                            }
+                                            return val + ' Days'; 
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    // 2. Trend Chart (Average Lead Time)
+                    const ctxTrend = document.getElementById('trendChart').getContext('2d');
+                    trendChart = new Chart(ctxTrend, {
+                        type: 'bar',
+                        data: {
+                            labels: trendData.labels,
+                            datasets: [{
+                                label: 'Avg Lead Time (Days)',
+                                data: trendData.data,
+                                backgroundColor: 'rgba(16, 185, 129, 0.7)', // Solid Green
+                                borderRadius: 4,
+                                barPercentage: 0.6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: colors.grid },
+                                    ticks: { color: colors.text }
+                                },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { color: colors.text }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false }, // Hide legend as it's self explanatory
+                                title: { display: false }
+                            }
+                        }
+                    });
+                });
         }
 
         function updateCharts(theme) {
@@ -898,6 +1279,26 @@
             volumeChart.options.scales.x.ticks.color = colors.text;
             volumeChart.options.plugins.legend.labels.color = colors.legend;
             volumeChart.update();
+
+            statusChart.options.scales.y.grid.color = colors.grid;
+            statusChart.options.scales.y.ticks.color = colors.text;
+            statusChart.options.scales.x.ticks.color = colors.text;
+            statusChart.options.plugins.legend.labels.color = colors.legend;
+            statusChart.update();
+
+            if (timelineChart) {
+                timelineChart.options.scales.x.grid.color = colors.grid;
+                timelineChart.options.scales.x.ticks.color = colors.text;
+                timelineChart.options.scales.y.ticks.color = colors.text;
+                timelineChart.update();
+            }
+
+            if (trendChart) {
+                trendChart.options.scales.x.grid.color = colors.grid;
+                trendChart.options.scales.x.ticks.color = colors.text;
+                trendChart.options.scales.y.ticks.color = colors.text;
+                trendChart.update();
+            }
 
             statusChart.options.plugins.legend.labels.color = colors.legend;
             statusChart.update();
@@ -1117,6 +1518,85 @@
         document.getElementById('commentMessage').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 sendComment();
+            }
+        });
+
+        // ===== AUTO PAGINATION for Pending Requisitions (AJAX) =====
+        const AUTO_PAGE_INTERVAL = 10000; // 10 seconds
+        
+        function startAutoPagination() {
+            setInterval(() => {
+                // 1. Safety Check: Pause if any modal is visible
+                const mitigationModal = document.getElementById('mitigationModal');
+                const convertModal = document.getElementById('convertModal');
+                
+                if ((mitigationModal && mitigationModal.style.display !== 'none') || 
+                    (convertModal && convertModal.style.display !== 'none')) {
+                    console.log('Auto-pagination paused: User is interacting with a modal');
+                    return;
+                }
+
+                // 2. Find Next Page Link
+                const nextLink = document.querySelector('#pendingRequisitionsCard .pagination a[rel="next"]');
+                let targetUrl = null;
+
+                if (nextLink) {
+                    targetUrl = nextLink.href;
+                } else {
+                    // 3. Loop back to Page 1 if on last page
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const currentPage = parseInt(urlParams.get('page')) || 1;
+                    
+                    if (currentPage > 1) {
+                         const cleanUrl = new URL(window.location.href);
+                         cleanUrl.searchParams.set('page', '1');
+                         targetUrl = cleanUrl.toString();
+                    }
+                }
+
+                // 4. Perform AJAX Update
+                if (targetUrl) {
+                    fetch(targetUrl)
+                        .then(response => response.text())
+                        .then(html => {
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, 'text/html');
+                            const newTableCard = doc.querySelector('#pendingRequisitionsCard');
+                            const currentTableCard = document.querySelector('#pendingRequisitionsCard');
+
+                            if (newTableCard && currentTableCard) {
+                                currentTableCard.innerHTML = newTableCard.innerHTML;
+                                
+                                // Optional: Update URL without reload so refresh stays on current page
+                                window.history.pushState({path: targetUrl}, '', targetUrl);
+                            }
+                        })
+                        .catch(err => console.error('Auto-pagination error:', err));
+                }
+
+            }, AUTO_PAGE_INTERVAL);
+        }
+
+        // Initialize
+        startAutoPagination();
+
+        // ===== NOTIFICATIONS =====
+        function toggleNotifications() {
+            const dropdown = document.getElementById('notificationDropdown');
+            if (dropdown.style.display === 'block') {
+                dropdown.style.display = 'none';
+            } else {
+                dropdown.style.display = 'block';
+            }
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const wrapper = document.querySelector('.notification-wrapper');
+            const dropdown = document.getElementById('notificationDropdown');
+            
+            if (wrapper && !wrapper.contains(event.target)) {
+                dropdown.style.display = 'none';
             }
         });
     </script>
