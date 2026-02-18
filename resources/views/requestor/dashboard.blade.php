@@ -311,6 +311,7 @@
                     <thead>
                         <tr>
                             <th>PR Number</th>
+                            <th>Dept</th>
                             <th>Description</th>
                             <th>Req. Date</th>
                             <th>Aging</th>
@@ -327,6 +328,7 @@
                             @endphp
                             <tr>
                                 <td style="font-family: monospace; color: var(--accent-primary); font-weight: 500;">{{ $pr->pr_number }}</td>
+                                <td>{{ $pr->purchasing_group ?? '-' }} <span style="font-size: 0.7rem; color: var(--text-secondary);">({{ $pr->department ?? '-' }})</span></td>
                                 <td>{{ Str::limit($pr->short_text, 35) }}</td>
                                 <td>{{ $pr->req_date ? $pr->req_date->format('d.m.Y') : '-' }}</td>
                                 <td>
@@ -349,14 +351,18 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <button type="button" class="btn-mitigate" data-pr-id="{{ $pr->id }}" title="Lihat Detail">
-                                        <i class="ph ph-eye"></i>
-                                    </button>
+                                    @if(!$pr->po_number)
+                                        <button type="button" class="btn-mitigate" data-pr-id="{{ $pr->id }}" title="Lihat Detail">
+                                            <i class="ph ph-eye"></i>
+                                        </button>
+                                    @else
+                                        <span style="color: var(--success); font-size: 0.8rem;"><i class="ph ph-check-circle"></i> Done</span>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                                <td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
                                     No requisitions found for {{ $dept }}
                                 </td>
                             </tr>

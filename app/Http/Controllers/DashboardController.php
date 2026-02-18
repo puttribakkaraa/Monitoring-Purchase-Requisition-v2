@@ -524,6 +524,16 @@ class DashboardController extends Controller
             'po_release_date' => now(),
         ]);
 
+        // Trigger Notification
+        $user = \App\Models\User::first();
+        if ($user) {
+            $user->notify(new \App\Notifications\PrConvertedToPoNotification([
+                'pr_number' => $pr->pr_number,
+                'po_number' => $request->po_number,
+                'po_date' => now()->format('d M Y'),
+            ]));
+        }
+
         return response()->json(['success' => true, 'message' => 'PR converted to PO successfully!']);
     }
 
@@ -657,5 +667,15 @@ class DashboardController extends Controller
                 'data' => $trendValues
             ]
         ]);
+    }
+
+    public function markAllRead()
+    {
+        $user = \App\Models\User::first();
+        if ($user) {
+            $user->unreadNotifications->markAsRead();
+        }
+
+        return response()->json(['success' => true]);
     }
 }

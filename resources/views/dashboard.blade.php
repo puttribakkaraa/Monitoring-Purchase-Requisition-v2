@@ -595,6 +595,7 @@
             color: var(--text-secondary);
             font-size: 0.85rem;
         }
+
     </style>
 </head>
 <body>
@@ -657,7 +658,7 @@
 
                 <div class="user-profile">
                     <!-- Notification Bell -->
-                    <div class="notification-wrapper" onclick="toggleNotifications()">
+                    <div class="notification-wrapper" onclick="toggleNotifications(event)">
                         <i class="ph ph-bell" style="font-size: 1.25rem; color: var(--text-secondary);"></i>
                         @if(isset($unreadCount) && $unreadCount > 0)
                             <div class="notification-badge">{{ $unreadCount > 9 ? '9+' : $unreadCount }}</div>
@@ -668,7 +669,7 @@
                             <div class="notification-header">
                                 <span>Notifications</span>
                                 @if(isset($unreadCount) && $unreadCount > 0)
-                                    <span style="font-size: 0.7rem; color: var(--accent-primary); cursor: pointer;">Mark all read</span>
+                                    <span style="font-size: 0.7rem; color: var(--accent-primary); cursor: pointer;" onclick="markAllRead(event)">Mark all read</span>
                                 @endif
                             </div>
                             <div class="notification-list">
@@ -723,7 +724,10 @@
             </div>
 
             <div class="kpi-card">
-                <div class="kpi-title">Avg. Lead Time</div>
+                <div class="kpi-title">
+                    Avg. Lead Time
+                    <i class="ph ph-info" style="font-size: 0.85rem; cursor: help; opacity: 0.5;" title="Rata-rata waktu dari PR dibuat hingga PO terbit. Hanya menghitung PR yang sudah selesai (sudah ada PO). PR yang masih Pending (aging beratus hari) belum termasuk dalam perhitungan ini."></i>
+                </div>
                 <div class="kpi-value">{{ $avgLeadTime }} <span style="font-size: 0.85rem; font-weight: 400;">days</span></div>
                 <div class="kpi-icon"><i class="ph ph-timer"></i></div>
                 <div class="trend {{ $avgLeadTime < 10 ? 'up' : 'down' }}">Target: < 7 days</div>
@@ -819,7 +823,7 @@
                             @endphp
                             <tr>
                                 <td style="font-family: monospace; color: var(--accent-primary); font-weight: 500;">{{ $pr->pr_number }}</td>
-                                <td>{{ $pr->purchasing_group ?? '-' }}</td>
+                                <td>{{ $pr->purchasing_group ?? '-' }} <span style="font-size: 0.7rem; color: var(--text-secondary);">({{ $pr->department ?? '-' }})</span></td>
                                 <td>{{ Str::limit($pr->short_text, 25) }}</td>
                                 <td>{{ $pr->req_date ? $pr->req_date->format('d.m.Y') : '-' }}</td>
                                 <td>
@@ -971,6 +975,51 @@
         function toggleTheme() {
             const current = getTheme();
             setTheme(current === 'dark' ? 'light' : 'dark');
+        }
+
+        // ===== NOTIFICATIONS =====
+        function toggleNotifications(event) {
+            if (event) event.stopPropagation();
+            const dropdown = document.getElementById('notificationDropdown');
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            const wrapper = document.querySelector('.notification-wrapper');
+            const dropdown = document.getElementById('notificationDropdown');
+            if (wrapper && dropdown && !wrapper.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        function markAllRead(event) {
+            event.stopPropagation();
+            
+            fetch('/notifications/mark-all-read', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove badge
+                    const badge = document.querySelector('.notification-badge');
+                    if (badge) badge.remove();
+
+                    // Remove unread styling
+                    document.querySelectorAll('.notification-item.unread').forEach(item => {
+                        item.classList.remove('unread');
+                    });
+
+                    // Hide "Mark all read" button
+                    event.target.style.display = 'none';
+                }
+            })
+            .catch(err => console.error('Error:', err));
         }
 
         // Convert PO Functions

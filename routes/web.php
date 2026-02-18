@@ -13,6 +13,7 @@ Route::post('/pr/{id}/comment', [DashboardController::class, 'addComment'])->nam
 Route::get('/pr/{id}/comments', [DashboardController::class, 'getComments'])->name('pr.comments');
 Route::post('/pr/{id}/convert', [DashboardController::class, 'convertToPo'])->name('pr.convert');
 Route::get('/api/timeline-data', [DashboardController::class, 'getTimelineData'])->name('api.timeline');
+Route::post('/notifications/mark-all-read', [DashboardController::class, 'markAllRead'])->name('notifications.markAllRead');
 
 // Requestor (User View) Routes
 Route::prefix('requestor')->name('requestor.')->group(function () {

@@ -11,6 +11,20 @@ use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class PurchaseRequisitionImport implements ToCollection
 {
+    /**
+     * Mapping Purchasing Group Code → Department Name
+     */
+    const DEPT_MAP = [
+        'DAA' => 'PPIC',
+        'DAB' => 'PPIC',
+        'DAC' => 'PPIC',
+        'DAD' => 'Maint',
+        'DAE' => 'Dieshop',
+        'DAF' => 'OTHERS',
+        'DAG' => 'Maint',
+        'DAH' => 'OTHERS',
+    ];
+
     public function collection(Collection $rows)
     {
         $headerRow = null;
@@ -102,7 +116,7 @@ class PurchaseRequisitionImport implements ToCollection
         }
 
         // Map data
-        PurchaseRequisition::updateOrCreate(
+        $pr = PurchaseRequisition::updateOrCreate(
             [
                 'pr_number' => $prNumber,
                 'item_number' => $itemNumber,
@@ -121,10 +135,16 @@ class PurchaseRequisitionImport implements ToCollection
                 'unit' => $row['unit'] ?? $row['uom'] ?? $row['un'] ?? null,
                 'total_value' => $row['val_in_repor'] ?? $row['val_in_rep_cur'] ?? $row['total_value'] ?? $row['tot_value'] ?? 0,
                 'currency' => $row['curr'] ?? $row['currency'] ?? $row['crcy'] ?? 'IDR',
-                'department' => $row['department'] ?? $row['dept'] ?? null,
                 'tracking_number' => $row['tracking_number'] ?? $row['tracking_no'] ?? $row['trackingno'] ?? null,
             ]
         );
+
+        // Auto-fill department from purchasing_group mapping
+        $purchGroup = strtoupper(trim($pr->purchasing_group ?? ''));
+        if ($purchGroup && isset(self::DEPT_MAP[$purchGroup])) {
+            $pr->department = self::DEPT_MAP[$purchGroup];
+            $pr->save();
+        }
     }
 
     private function parseDate($value)
