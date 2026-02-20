@@ -9,12 +9,9 @@ use Illuminate\Support\Str;
 
 class RequestorController extends Controller
 {
-    /**
-     * Show login page (Department Selection).
-     */
     public function login()
     {
-        // Get list of unique departments from PRs for the dropdown
+        
         $departments = PurchaseRequisition::select('purchasing_group')
             ->whereNotNull('purchasing_group')
             ->distinct()
@@ -24,9 +21,6 @@ class RequestorController extends Controller
         return view('requestor.login', compact('departments'));
     }
 
-    /**
-     * Authenticate (Store department in session).
-     */
     public function authenticate(Request $request)
     {
         $request->validate([
@@ -38,9 +32,6 @@ class RequestorController extends Controller
         return redirect()->route('requestor.dashboard');
     }
 
-    /**
-     * User Dashboard.
-     */
     public function dashboard()
     {
         $dept = session('requestor_dept');
@@ -49,21 +40,15 @@ class RequestorController extends Controller
             return redirect()->route('requestor.login');
         }
 
-        // 1. Calculate Stats (Based on ALL data for this dept)
-        // We use a base query builder to avoid repetition
         $baseQuery = PurchaseRequisition::where('purchasing_group', $dept);
-        
         $total = (clone $baseQuery)->count();
         $processed = (clone $baseQuery)->whereNotNull('po_number')->count();
         $pending = (clone $baseQuery)->whereNull('po_number')->count();
         
-        // Calculate overdue (Pending > 14 days)
-        // Using collection filter on a constrained query or raw SQL is better than fetching all
-        // For simplicity and performance on filtered set:
         $overdue = (clone $baseQuery)
             ->whereNull('po_number')
             ->whereNotNull('req_date')
-            ->get() // Get only pending to check dates in PHP (safer if specific date logic needed)
+            ->get() 
             ->filter(function ($pr) {
                 return $pr->req_date->diffInDays(now()) > 14;
             })
@@ -76,16 +61,14 @@ class RequestorController extends Controller
             'overdue' => $overdue,
         ];
 
-        // 2. Get Data for Table (ONLY Pending PRs, as requested)
         $requisitions = PurchaseRequisition::where('purchasing_group', $dept)
-            ->whereNull('po_number') // Filter: Only show PRs without PO
+            ->whereNull('po_number') 
             ->with(['comments' => function($q) {
                 $q->latest();
             }])
             ->latest('req_date')
             ->paginate(10);
 
-        // 3. Prepare Chart Data (Department Specific)
         $chartData = $this->getDeptChartData($dept);
 
         return view('requestor.dashboard', compact('dept', 'requisitions', 'stats', 'chartData'));
@@ -93,9 +76,9 @@ class RequestorController extends Controller
 
     private function getDeptChartData($dept)
     {
-        // A. Monthly Volume (Last 6 Months)
+        // A. Monthly Volume (Last 12 Months)
         $months = collect([]);
-        for ($i = 5; $i >= 0; $i--) {
+        for ($i = 11; $i >= 0; $i--) {
             $months->push(Carbon::now()->subMonths($i));
         }
 
