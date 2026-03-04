@@ -42,6 +42,11 @@ class PurchaseRequisition extends Model
         'mitigation_status',
         'department',
         'po_release_date',
+        'feedback_status',
+        'feedback_question',
+        'feedback_asked_at',
+        'feedback_response',
+        'feedback_responded_at',
     ];
 
     protected $casts = [
@@ -50,6 +55,8 @@ class PurchaseRequisition extends Model
         'release_date' => 'date',
         'quantity' => 'decimal:2',
         'total_value' => 'decimal:2',
+        'feedback_asked_at' => 'datetime',
+        'feedback_responded_at' => 'datetime',
     ];
 
     public function comments()

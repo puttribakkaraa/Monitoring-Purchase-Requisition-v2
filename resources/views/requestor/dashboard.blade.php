@@ -96,12 +96,24 @@
         /* KPI GRID */
         .kpi-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 1rem;
             margin-bottom: 1.5rem;
         }
-        @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 1200px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
         @media (max-width: 768px) { .kpi-grid { grid-template-columns: 1fr; } }
+
+        @keyframes pulse-badge {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+        .feedback-badge {
+            display: inline-flex; align-items: center; gap: 0.25rem;
+            background: rgba(59,130,246,0.15); color: #3b82f6;
+            font-size: 0.6rem; font-weight: 600; padding: 0.15rem 0.45rem;
+            border-radius: 2rem; animation: pulse-badge 2s infinite;
+        }
+        .status-feedback { background: rgba(59,130,246,0.15); color: #3b82f6; }
         
         .kpi-card {
             background: var(--bg-card);
@@ -160,6 +172,42 @@
         .status-processed { background: rgba(16, 185, 129, 0.15); color: var(--success); }
         .status-pending { background: rgba(245, 158, 11, 0.15); color: var(--warning); }
         .status-overdue { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+
+        /* Step Tracker */
+        .step-tracker {
+            display: flex;
+            align-items: center;
+            gap: 0.15rem;
+            font-size: 0.6rem;
+        }
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 0.15rem;
+            padding: 0.1rem 0.3rem;
+            border-radius: 0.2rem;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .step-item.done {
+            background: rgba(16,185,129,0.12);
+            color: #10b981;
+            font-weight: 600;
+        }
+        .step-item.active {
+            background: rgba(59,130,246,0.12);
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        .step-item.pending {
+            color: var(--text-secondary);
+            opacity: 0.5;
+        }
+        .step-connector {
+            color: var(--text-secondary);
+            font-size: 0.55rem;
+            opacity: 0.4;
+        }
         
         .pagination { padding: 0.75rem 1rem; display: flex; justify-content: center; width: 100%; }
         .pagination nav { display: flex; gap: 0.35rem; width: 100%; justify-content: space-between; }
@@ -234,7 +282,7 @@
             </div>
         </div>
 
-        <!-- KPIs - 4 Columns -->
+        <!-- KPIs - 5 Columns -->
         <div class="kpi-grid">
             <div class="kpi-card">
                 <div class="kpi-title">Total Requisitions</div>
@@ -258,6 +306,17 @@
                 <div class="kpi-title">Pending</div>
                 <div class="kpi-value" style="color: var(--warning);">{{ number_format($stats['pending']) }}</div>
                 <div class="kpi-icon" style="color: var(--warning);"><i class="ph ph-clock"></i></div>
+            </div>
+
+            <div class="kpi-card" style="border-color: {{ $stats['feedback_waiting'] > 0 ? '#3b82f6' : 'var(--border)' }}; {{ $stats['feedback_waiting'] > 0 ? 'box-shadow: 0 0 12px rgba(59,130,246,0.25);' : '' }}">
+                <div class="kpi-title">Butuh Respon Anda</div>
+                <div class="kpi-value" style="color: #3b82f6;">{{ number_format($stats['feedback_waiting']) }}</div>
+                <div class="kpi-icon" style="color: #3b82f6;"><i class="ph ph-chat-dots"></i></div>
+                @if($stats['feedback_waiting'] > 0)
+                    <div class="trend" style="color: #3b82f6;">
+                        <i class="ph ph-bell-ringing"></i> Ada pertanyaan dari admin
+                    </div>
+                @endif
             </div>
         </div>
 
@@ -337,13 +396,27 @@
                                     </span>
                                 </td>
                                 <td>
-                                    @if($pr->po_number)
-                                        <span class="status-badge status-processed">Processed</span>
-                                    @elseif($isOverdue)
-                                        <span class="status-badge status-overdue">Overdue</span>
-                                    @else
-                                        <span class="status-badge status-pending">Pending</span>
-                                    @endif
+                                    @php
+                                        $stepFollowUp = in_array($pr->feedback_status, ['waiting', 'responded']);
+                                        $stepFeedback = $pr->feedback_status === 'responded';
+                                        $stepReleased = !empty($pr->po_number);
+                                    @endphp
+                                    <div class="step-tracker">
+                                        <span class="step-item {{ $stepFollowUp ? 'done' : ($isOverdue ? 'active' : 'pending') }}">
+                                            @if($stepFollowUp)<i class="ph ph-check-circle"></i>@else<i class="ph ph-circle"></i>@endif
+                                            Follow-up
+                                        </span>
+                                        <span class="step-connector">›</span>
+                                        <span class="step-item {{ $stepFeedback ? 'done' : ($stepFollowUp ? 'active' : 'pending') }}">
+                                            @if($stepFeedback)<i class="ph ph-check-circle"></i>@else<i class="ph ph-circle"></i>@endif
+                                            Feedback
+                                        </span>
+                                        <span class="step-connector">›</span>
+                                        <span class="step-item {{ $stepReleased ? 'done' : ($stepFeedback ? 'active' : 'pending') }}">
+                                            @if($stepReleased)<i class="ph ph-check-circle"></i>@else<i class="ph ph-circle"></i>@endif
+                                            Released
+                                        </span>
+                                    </div>
                                 </td>
                                 <td style="max-width: 150px;">
                                     <span style="font-size: 0.75rem; color: var(--text-secondary);">
@@ -352,8 +425,13 @@
                                 </td>
                                 <td>
                                     @if(!$pr->po_number)
-                                        <button type="button" class="btn-mitigate" data-pr-id="{{ $pr->id }}" title="Lihat Detail">
-                                            <i class="ph ph-eye"></i>
+                                        <button type="button" class="btn-mitigate" data-pr-id="{{ $pr->id }}" title="Lihat Detail"
+                                            @if($pr->feedback_status === 'waiting') style="background: #3b82f6; animation: pulse-badge 2s infinite;" @endif>
+                                            @if($pr->feedback_status === 'waiting')
+                                                <i class="ph ph-chat-dots"></i>
+                                            @else
+                                                <i class="ph ph-eye"></i>
+                                            @endif
                                         </button>
                                     @else
                                         <span style="color: var(--success); font-size: 0.8rem;"><i class="ph ph-check-circle"></i> Done</span>
@@ -396,6 +474,36 @@
                     <div class="pr-info-row">
                         <span class="label">Usia PR:</span>
                         <span id="modalDays"></span>
+                    </div>
+                </div>
+
+                <!-- Feedback from Admin Section -->
+                <div id="feedbackSection" style="margin-bottom: 1rem; display: none;">
+                    <div style="background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); border-radius: 0.5rem; padding: 0.75rem;">
+                        <h4 style="font-size: 0.85rem; color: #3b82f6; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
+                            <i class="ph ph-question"></i> Pertanyaan dari Admin Purchasing
+                        </h4>
+                        <div id="feedbackQuestionDisplay" style="background: var(--bg-card); padding: 0.5rem; border-radius: 0.35rem; font-size: 0.85rem; margin-bottom: 0.5rem;"></div>
+                        <div id="feedbackTimestamp" style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.75rem;"></div>
+                        
+                        <!-- Response form (only shown when waiting) -->
+                        <div id="feedbackResponseForm" style="display: none;">
+                            <label style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 0.35rem;">
+                                <i class="ph ph-pencil-line"></i> Tulis respon Anda:
+                            </label>
+                            <textarea id="feedbackResponse" placeholder="Jelaskan alasan atau status PR ini..." rows="3"
+                                style="width: 100%; background: var(--bg-body); border: 1px solid var(--border); border-radius: 0.35rem; padding: 0.5rem; color: var(--text-primary); font-family: inherit; font-size: 0.85rem; resize: vertical;"></textarea>
+                            <button class="btn btn-primary" onclick="respondFeedback()" style="margin-top: 0.5rem;">
+                                <i class="ph ph-paper-plane-tilt"></i> Kirim Respon ke Admin
+                            </button>
+                        </div>
+
+                        <!-- Already responded display -->
+                        <div id="feedbackRespondedDisplay" style="display: none;">
+                            <div style="font-size: 0.75rem; color: var(--success); margin-bottom: 0.25rem;"><i class="ph ph-check-circle"></i> Respon Anda:</div>
+                            <div id="feedbackResponseText" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); padding: 0.5rem; border-radius: 0.35rem; font-size: 0.85rem;"></div>
+                            <div id="feedbackResponseTimestamp" style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -476,21 +584,40 @@
             currentPrId = prId;
             document.getElementById('mitigationModal').style.display = 'flex';
             
-            fetch(`/pr/${prId}/details`)
+            fetch(`/requestor/pr/${prId}/details`)
                 .then(res => res.json())
                 .then(data => {
                     document.getElementById('modalPrNumber').textContent = data.pr_number;
                     document.getElementById('modalDesc').textContent = data.short_text || '-';
                     document.getElementById('modalDays').textContent = data.days_overdue + ' hari';
                     
-                    let statusHtml = '';
-                    if (data.status === 'processed') statusHtml = '<span class="status-badge status-processed">Processed</span>';
-                    else if (data.status === 'overdue') statusHtml = '<span class="status-badge status-overdue">Overdue</span>';
-                    else statusHtml = '<span class="status-badge status-pending">Pending</span>';
-                    
+                    const stepFollowUp = data.feedback_status === 'waiting' || data.feedback_status === 'responded';
+                    const stepFeedback = data.feedback_status === 'responded';
+                    const stepReleased = !!data.po_number;
+                    const isOverdue = data.days_overdue > 14;
+
+                    function stepClass(done, activeCond) {
+                        if (done) return 'done';
+                        if (activeCond) return 'active';
+                        return 'pending';
+                    }
+                    function stepIcon(done) {
+                        return done ? '<i class="ph ph-check-circle"></i>' : '<i class="ph ph-circle"></i>';
+                    }
+
+                    let statusHtml = `<div class="step-tracker">
+                        <span class="step-item ${stepClass(stepFollowUp, isOverdue)}">${stepIcon(stepFollowUp)} Follow-up</span>
+                        <span class="step-connector">›</span>
+                        <span class="step-item ${stepClass(stepFeedback, stepFollowUp)}">${stepIcon(stepFeedback)} Feedback</span>
+                        <span class="step-connector">›</span>
+                        <span class="step-item ${stepClass(stepReleased, stepFeedback)}">${stepIcon(stepReleased)} Released</span>
+                    </div>`;
                     document.getElementById('modalStatus').innerHTML = statusHtml;
                     document.getElementById('mitigationReason').value = data.mitigation_reason || '';
                     document.getElementById('mitigationStatus').value = data.mitigation_status || 'open';
+                    
+                    // Handle feedback section
+                    renderFeedbackSection(data);
                     
                     renderComments(data.comments);
                 })
@@ -498,6 +625,63 @@
                     console.error('Error:', err);
                     alert('Error loading details');
                 });
+        }
+
+        function renderFeedbackSection(data) {
+            const section = document.getElementById('feedbackSection');
+            const form = document.getElementById('feedbackResponseForm');
+            const responded = document.getElementById('feedbackRespondedDisplay');
+
+            if (data.feedback_status === 'waiting') {
+                section.style.display = 'block';
+                document.getElementById('feedbackQuestionDisplay').textContent = data.feedback_question;
+                document.getElementById('feedbackTimestamp').textContent = 'Dikirim: ' + data.feedback_asked_at;
+                form.style.display = 'block';
+                responded.style.display = 'none';
+                document.getElementById('feedbackResponse').value = '';
+            } else if (data.feedback_status === 'responded') {
+                section.style.display = 'block';
+                document.getElementById('feedbackQuestionDisplay').textContent = data.feedback_question;
+                document.getElementById('feedbackTimestamp').textContent = 'Dikirim: ' + data.feedback_asked_at;
+                form.style.display = 'none';
+                responded.style.display = 'block';
+                document.getElementById('feedbackResponseText').textContent = data.feedback_response;
+                document.getElementById('feedbackResponseTimestamp').textContent = 'Direspon: ' + data.feedback_responded_at;
+            } else {
+                section.style.display = 'none';
+            }
+        }
+
+        function respondFeedback() {
+            if (!currentPrId) return;
+            const response = document.getElementById('feedbackResponse').value.trim();
+            if (!response) {
+                alert('Tulis respon Anda terlebih dahulu');
+                document.getElementById('feedbackResponse').focus();
+                return;
+            }
+
+            fetch(`/requestor/pr/${currentPrId}/respond-feedback`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ response: response })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Respon berhasil dikirim ke admin purchasing!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.message || data.error || 'Gagal mengirim respon'));
+                }
+            })
+            .catch(err => {
+                console.error('Error responding:', err);
+                alert('Error mengirim respon');
+            });
         }
 
         function closeMitigationModal() {
@@ -741,7 +925,7 @@
                 return;
             }
 
-            fetch(`/pr/${currentPrId}/comment`, {
+            fetch(`/requestor/pr/${currentPrId}/comment`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -756,10 +940,8 @@
             .then(data => {
                 if (data.success) {
                     document.getElementById('commentMessage').value = '';
-                    // Reload comments
-                    fetch(`/pr/${currentPrId}/comments`)
-                        .then(res => res.json())
-                        .then(data => renderComments(data.comments));
+                    // Reload modal
+                    openMitigationModal(currentPrId);
                 } else {
                     alert('Error: ' + data.message);
                 }
