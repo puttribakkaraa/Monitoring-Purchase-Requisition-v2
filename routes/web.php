@@ -15,6 +15,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 // Protected Admin Routes
 Route::middleware('auth')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/tv', [DashboardController::class, 'tvDashboard'])->name('tv.dashboard');
     Route::post('/import', [DashboardController::class, 'import'])->name('import');
 
     // Mitigation API routes
@@ -33,6 +34,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/users', [AuthController::class, 'users'])->name('users.index');
     Route::post('/users', [AuthController::class, 'storeUser'])->name('users.store');
     Route::delete('/users/{id}', [AuthController::class, 'deleteUser'])->name('users.delete');
+    Route::post('/profile/update', [AuthController::class, 'updateProfile'])->name('profile.update');
 });
 
 // Requestor (User View) Routes - No auth required

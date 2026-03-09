@@ -398,6 +398,46 @@ class DashboardController extends Controller
         ));
     }
 
+    /**
+     * TV Monitoring Dashboard – fullscreen, dark, read-only.
+     */
+    public function tvDashboard()
+    {
+        $picMap = self::getPicMap();
+        $pgDescriptions = self::PG_DESCRIPTIONS;
+
+        $deptPerformance = [];
+        $totalAllPR = PurchaseRequisition::count();
+        foreach (self::DEPARTMENTS as $dept) {
+            $deptPRs = PurchaseRequisition::where('purchasing_group', $dept);
+            $deptTotal = (clone $deptPRs)->count();
+            $belumPO = (clone $deptPRs)->where(function($q) {
+                $q->whereNull('po_number')->orWhere('po_number', '');
+            });
+            $deptQtyBelumPO = (clone $belumPO)->count();
+            $deptAmountBelumPO = (clone $belumPO)->sum('total_value') ?: 0;
+            $sudahFU = (clone $belumPO)->whereIn('feedback_status', ['waiting', 'responded'])->count();
+            $deptPerformance[$dept] = [
+                'pic'            => $picMap[$dept] ?? 'Unassigned',
+                'total'          => $deptTotal,
+                'qty'            => $deptQtyBelumPO,
+                'percentage'     => $totalAllPR > 0 ? round(($deptTotal / $totalAllPR) * 100, 1) : 0,
+                'amount'         => $deptAmountBelumPO,
+                'released'       => (clone $deptPRs)->whereNotNull('po_number')->where('po_number', '!=', '')->count(),
+                'sudah_fu'       => $sudahFU,
+                'follow_up'      => $deptQtyBelumPO - $sudahFU,
+                'need_feedback'  => (clone $deptPRs)->where('feedback_status', 'waiting')->count(),
+                'sudah_feedback' => (clone $deptPRs)->where('feedback_status', 'responded')->count(),
+            ];
+        }
+
+        return view('tv_dashboard', compact(
+            'deptPerformance',
+            'picMap',
+            'pgDescriptions'
+        ));
+    }
+
     private function getDeptChartData()
     {
         // Use purchasing_group as 'Department' per user request

@@ -21,6 +21,17 @@ class DatabaseSeeder extends Seeder
         //     'name' => 'Test User',
         //     'email' => 'test@example.com',
         // ]);
+        
+        // Buat akun khusus untuk TV Monitoring
+        User::firstOrCreate(
+            ['npk' => 'TV001'],
+            [
+                'name' => 'TV Monitoring',
+                'email' => 'monitoring@mtm.co.id',
+                'password' => bcrypt('monitoring123'),
+                'role' => 'monitoring'
+            ]
+        );
 
         $this->call([
             PurchaseRequisitionSeeder::class,
