@@ -32,7 +32,6 @@ class DatabaseSeeder extends Seeder
                 'role' => 'monitoring'
             ]
         );
-
         $this->call([
             PurchaseRequisitionSeeder::class,
         ]);
