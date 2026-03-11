@@ -138,6 +138,10 @@ class DashboardController extends Controller
                 $count++;
             }
         }
+
+        unset($content);
+        unset($dom);
+        gc_collect_cycles();
         
         return $count;
     }
@@ -256,148 +260,90 @@ class DashboardController extends Controller
         );
     }
 
-    public function index(Request $request)
-    {
-        // 1. Overall KPIs
-        $totalPR = PurchaseRequisition::count();
+    
+public function index(Request $request)
+{
+    DB::connection()->disableQueryLog();
+
+    // 1. Ambil data agregat global sekaligus (Hemat RAM)
+    $kpis = PurchaseRequisition::selectRaw("
+        COUNT(*) as total,
+        SUM(CASE WHEN po_number IS NOT NULL AND po_number != '' THEN 1 ELSE 0 END) as processed,
+        SUM(CASE WHEN po_number IS NULL OR po_number = '' THEN 1 ELSE 0 END) as pending
+    ")->first();
+
+    $totalPR = $kpis->total;
+    $processedPO = $kpis->processed;
+    $pendingPO = $kpis->pending;
+
+    // 2. Overdue & Lead Time (Gunakan query builder saja, jangan get() model)
+    $overduePR = PurchaseRequisition::where(fn($q) => $q->whereNull('po_number')->orWhere('po_number', ''))
+        ->where('req_date', '<', now()->subDays(20))
+        ->count();
+
+    // 3. Lead Time Average (Proses via Database lebih cepat)
+    $avgLeadTime = PurchaseRequisition::whereNotNull('req_date')
+        ->where(fn($q) => $q->whereNotNull('po_date')->orWhereNotNull('po_release_date'))
+        ->selectRaw("AVG(DATEDIFF(COALESCE(po_release_date, po_date), req_date)) as avg_lt")
+        ->value('avg_lt') ?? 0;
+
+    // 4. Pagination (Tetap sama, sudah benar)
+    $search = $request->input('search');
+    $query = PurchaseRequisition::orderBy('req_date', 'desc');
+    if ($search) {
+        $query->where(fn($q) => $q->where('po_number', 'like', "%{$search}%")
+            ->orWhere('purchasing_group', 'like', "%{$search}%")
+            ->orWhere('pr_number', 'like', "%{$search}%"));
+    } else {
+        $query->where(fn($q) => $q->whereNull('po_number')->orWhere('po_number', ''));
+    }
+    $requisitions = $query->paginate(20)->appends(['search' => $search]);
+
+    // 5. Department Performance (Satu query untuk semua departemen)
+    $allStats = PurchaseRequisition::selectRaw("
+        purchasing_group,
+        COUNT(*) as total,
+        SUM(CASE WHEN po_number IS NULL OR po_number = '' THEN 1 ELSE 0 END) as qty_pending,
+        SUM(CASE WHEN po_number IS NULL OR po_number = '' THEN total_value ELSE 0 END) as amount_pending,
+        SUM(CASE WHEN po_number IS NOT NULL AND po_number != '' THEN 1 ELSE 0 END) as qty_released,
+        SUM(CASE WHEN feedback_status = 'waiting' THEN 1 ELSE 0 END) as need_feedback,
+        SUM(CASE WHEN feedback_status = 'responded' THEN 1 ELSE 0 END) as has_feedback
+    ")
+    ->groupBy('purchasing_group')
+    ->get()
+    ->keyBy('purchasing_group');
+
+    $deptPerformance = [];
+    $picMap = self::getPicMap();
+    
+    foreach (self::DEPARTMENTS as $dept) {
+        $stats = $allStats->get($dept);
+        $totalDept = $stats->total ?? 0;
         
-        // Processed: Has PO Number
-        $processedPO = PurchaseRequisition::whereNotNull('po_number')->where('po_number', '!=', '')->count();
-        
-        // Pending: No PO Number
-        $pendingPO = PurchaseRequisition::where(function($q) {
-            $q->whereNull('po_number')->orWhere('po_number', '');
-        })->count();
-
-        // 2. Overdue Calculation
-        // Assuming "Overdue" means PR created > 20 days ago and still no PO.
-        // Adjust "20" based on business rules.
-        $overdueDays = 20;
-        $overduePR = PurchaseRequisition::where(function($q) {
-                $q->whereNull('po_number')->orWhere('po_number', '');
-            })
-            ->where('req_date', '<', Carbon::now()->subDays($overdueDays))
-            ->count();
-
-        // 3. Lead Time Calculation (Avg days to process)
-        // Logic: Same as chart - use po_release_date if available, else po_date.
-        // Since we need complex coalescing logic that might differ across DBs or use manual columns,
-        // and we already load the model, we can do this in PHP or raw SQL.
-        // For consistency and simplicity with the small dataset assumption:
-        
-        $completedPRs = PurchaseRequisition::where(function($q) {
-             $q->whereNotNull('po_date')->orWhereNotNull('po_release_date');
-        })->whereNotNull('req_date')->get();
-
-        $totalLeadTime = 0;
-        $count = 0;
-
-        foreach ($completedPRs as $pr) {
-            $end = $pr->po_release_date ?? $pr->po_date;
-            if ($end) {
-                 $endDate = is_string($end) ? Carbon::parse($end) : $end;
-                 $days = $pr->req_date->floatDiffInDays($endDate);
-                 if ($days >= 0) {
-                     $totalLeadTime += $days;
-                     $count++;
-                 }
-            }
-        }
-
-        $avgLeadTime = $count > 0 ? round($totalLeadTime / $count, 1) : 0;
-
-        // 4. Detailed Data for Table (Paginated)
-        // CHECK SEARCH QUERY
-        $search = $request->input('search');
-
-        if ($search) {
-            // Search Mode: Find ANY PR matching PO Number or Department
-            // We do NOT limit to 'pending' only, as user might search for a closed PO.
-            $requisitions = PurchaseRequisition::where(function($q) use ($search) {
-                    $q->where('po_number', 'like', "%{$search}%")
-                      ->orWhere('department', 'like', "%{$search}%")
-                      ->orWhere('purchasing_group', 'like', "%{$search}%") // Added this
-                      ->orWhere('pr_number', 'like', "%{$search}%"); 
-                })
-                ->orderBy('req_date', 'desc')
-                ->paginate(20)
-                ->appends(['search' => $search]); // Preserve query in pagination links
-        } else {
-            // Default Mode: Show Pending PRs (No PO)
-            $requisitions = PurchaseRequisition::where(function($q) {
-                    $q->whereNull('po_number')->orWhere('po_number', '');
-                })
-                ->orderBy('req_date', 'desc')
-                ->paginate(20);
-        }
-
-        // One-time Seed: Populate department if largely empty (for visualization)
-        if (PurchaseRequisition::count() > 0 && PurchaseRequisition::whereNull('department')->count() > 100) {
-            $depts = ['IT', 'HR', 'Production', 'Finance', 'Logistics', 'Procurement', 'Marketing', 'Maintenance'];
-            PurchaseRequisition::whereNull('department')->chunk(50, function ($prs) use ($depts) {
-                foreach ($prs as $pr) {
-                    $pr->update(['department' => $depts[array_rand($depts)]]);
-                }
-            });
-        }
-
-        // 6. Chart Data: Department Distribution (Line Chart)
-        $deptChartData = $this->getDeptChartData();
-        
-        // 5. Chart Data: Monthly PR vs PO
-        $chartData = $this->getChartData();
-
-        // 7. Notifications (Latest 5)
-        $user = auth()->user();
-        $notifications = $user ? $user->notifications()->latest()->take(5)->get() : collect([]);
-        $unreadCount = $user ? $user->unreadNotifications->count() : 0;
-
-        // 8. Department Performance Cards
-        $picMap = self::getPicMap();
-        $pgDescriptions = self::PG_DESCRIPTIONS;
-        
-        $deptPerformance = [];
-        $totalAllPR = PurchaseRequisition::count();
-        foreach (self::DEPARTMENTS as $dept) {
-            $deptPRs = PurchaseRequisition::where('purchasing_group', $dept);
-            $deptTotal = (clone $deptPRs)->count();
-            $belumPO = (clone $deptPRs)->where(function($q) {
-                $q->whereNull('po_number')->orWhere('po_number', '');
-            });
-            $deptQtyBelumPO = (clone $belumPO)->count();
-            $deptAmountBelumPO = (clone $belumPO)->sum('total_value') ?: 0;
-            $sudahFU = (clone $belumPO)->whereIn('feedback_status', ['waiting', 'responded'])->count();
-            $deptPerformance[$dept] = [
-                'pic'            => $picMap[$dept] ?? 'Unassigned',
-                'total'          => $deptTotal,
-                'qty'            => $deptQtyBelumPO,
-                'percentage'     => $totalAllPR > 0 ? round(($deptTotal / $totalAllPR) * 100, 1) : 0,
-                'amount'         => $deptAmountBelumPO,
-                'released'       => (clone $deptPRs)->whereNotNull('po_number')->where('po_number', '!=', '')->count(),
-                'sudah_fu'       => $sudahFU,
-                'follow_up'      => $deptQtyBelumPO - $sudahFU,
-                'need_feedback'  => (clone $deptPRs)->where('feedback_status', 'waiting')->count(),
-                'sudah_feedback' => (clone $deptPRs)->where('feedback_status', 'responded')->count(),
-            ];
-        }
-
-        return view('dashboard', compact(
-            'totalPR', 
-            'processedPO', 
-            'pendingPO', 
-            'overduePR', 
-            'avgLeadTime', 
-            'requisitions',
-            'chartData',
-            'deptChartData',
-            'notifications',
-            'unreadCount',
-            'deptPerformance',
-            'picMap',
-            'pgDescriptions'
-        ));
+        $deptPerformance[$dept] = [
+            'pic'            => $picMap[$dept] ?? 'Unassigned',
+            'total'          => $totalDept,
+            'qty'            => $stats->qty_pending ?? 0,
+            'percentage'     => $totalPR > 0 ? round(($totalDept / $totalPR) * 100, 1) : 0,
+            'amount'         => $stats->amount_pending ?? 0,
+            'released'       => $stats->qty_released ?? 0,
+            'follow_up'      => ($stats->qty_pending ?? 0) - (($stats->need_feedback ?? 0) + ($stats->has_feedback ?? 0)),
+            'need_feedback'  => $stats->need_feedback ?? 0,
+            'sudah_feedback' => $stats->has_feedback ?? 0,
+        ];
     }
 
+    // Chart Data tetap panggil fungsi lama
+    $chartData = $this->getChartData();
+    $deptChartData = $this->getDeptChartData();
+    $pgDescriptions = self::PG_DESCRIPTIONS;
+
+    return view('dashboard', compact(
+        'totalPR', 'processedPO', 'pendingPO', 'overduePR', 'avgLeadTime', 
+        'requisitions', 'chartData', 'deptChartData', 'deptPerformance', 
+        'picMap', 'pgDescriptions'
+    ));
+}
     /**
      * TV Monitoring Dashboard – fullscreen, dark, read-only.
      */
@@ -617,7 +563,7 @@ class DashboardController extends Controller
     public function getTimelineData()
     {
         // Fetch ALL PRs to calculate stage averages independently
-        $prs = PurchaseRequisition::with('comments')->get();
+        $prs = PurchaseRequisition::with('comments')->cursor();
         
         $durations = [
             'feedback' => [], // Created -> First Comment

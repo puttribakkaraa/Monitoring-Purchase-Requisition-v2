@@ -1303,8 +1303,7 @@
                     $bars = [
                         ['label' => 'Belum PO', 'val' => $perf['qty'], 'color' => '#ef4444', 'key' => null],
                         ['label' => 'PR Release', 'val' => $perf['released'], 'color' => '#10b981', 'key' => 'released'],
-                        ['label' => 'Sudah F/U', 'val' => $perf['sudah_fu'], 'color' => '#8b5cf6', 'key' => 'sudah_fu'],
-                        ['label' => 'F/U Purchasing', 'val' => $perf['follow_up'], 'color' => '#f59e0b', 'key' => 'follow_up'],
+                        ['label' => 'Sudah F/U', 'val' => $perf['sudah_fu'] ?? 0, 'color' => '#8b5cf6', 'key' => 'sudah_fu'],                        ['label' => 'F/U Purchasing', 'val' => $perf['follow_up'], 'color' => '#f59e0b', 'key' => 'follow_up'],
                         ['label' => 'Need Feedback', 'val' => $perf['need_feedback'], 'color' => '#3b82f6', 'key' => 'feedback'],
                         ['label' => 'Sudah Feedback', 'val' => $perf['sudah_feedback'], 'color' => '#06b6d4', 'key' => 'sudah_feedback'],
                     ];
