@@ -164,32 +164,48 @@ class DashboardController extends Controller
     private function normalizeHeaders(array $row): array
     {
         $mapping = [
-            'purch.r' => 'pr_number', 'purch' => 'pr_number', 'pr' => 'pr_number',
-            'requisn' => 'requisitioner',
+            // PR Number variations
+            'purch.req.' => 'pr_number', 'purch.r' => 'pr_number', 'purch' => 'pr_number', 'pr' => 'pr_number',
+            // Requisitioner
+            'requisnr.' => 'requisitioner', 'requisn' => 'requisitioner',
+            // Item
             'item' => 'item_number',
+            // Short Text
             'short text' => 'short_text', 'short' => 'short_text',
+            // PO Number
             'po' => 'po_number',
+            // Flags
             'd' => 'deletion_flag',
             'gr' => 'gr_indicator',
             'ir' => 'ir_indicator',
-            'mater' => 'material',
-            'tracking' => 'tracking_number',
+            // Material & Tracking
+            'material' => 'material', 'mater' => 'material',
+            'trackingno' => 'tracking_number', 'tracking' => 'tracking_number',
+            // Purchasing Group & Org
             'pgr' => 'purchasing_group',
+            'porg' => 'purchasing_org',
+            // Single-char columns
             'i' => 'item_category',
             'a' => 'account_assignment',
+            // Release
             'rel' => 'release_indicator',
             'code' => 'release_code',
-            'release d' => 'release_date',
-            'porg' => 'purchasing_org',
+            'release' => 'release_date', 'release d' => 'release_date',
+            // Supplier
             'supplier' => 'supplier',
-            'supp. m' => 'supplied_material', 'supp' => 'supplied_material',
+            'supp. mat.' => 'supplied_material', 'supp. m' => 'supplied_material', 'supp' => 'supplied_material',
+            // Status
             'rs' => 'rs_status',
+            // Dates
             'req. date' => 'req_date', 'req.date' => 'req_date', 'req date' => 'req_date',
-            'quan' => 'quantity', 'qty' => 'quantity',
+            // Quantity & Unit
+            'quantity' => 'quantity', 'quan' => 'quantity', 'qty' => 'quantity',
             'un' => 'unit',
+            // PO Date & Time
             'po date' => 'po_date',
             'time' => 'po_time',
-            'croy' => 'currency', 'curr' => 'currency',
+            // Currency & Value
+            'crcy' => 'currency', 'croy' => 'currency', 'curr' => 'currency',
             'per' => 'per',
             'tot. value' => 'total_value', 'tot value' => 'total_value', 'total' => 'total_value',
         ];
@@ -197,7 +213,26 @@ class DashboardController extends Controller
         $normalized = [];
         foreach ($row as $header) {
             $h = strtolower(trim($header));
-            $normalized[] = $mapping[$h] ?? preg_replace('/[^a-z0-9]+/', '_', $h);
+            
+            // 1) Exact match
+            if (isset($mapping[$h])) {
+                $normalized[] = $mapping[$h];
+                continue;
+            }
+            
+            // 2) Prefix match (e.g. 'purch.req.' starts with 'purch')
+            $found = false;
+            foreach ($mapping as $key => $value) {
+                if (strlen($key) > 1 && str_starts_with($h, $key)) {
+                    $normalized[] = $value;
+                    $found = true;
+                    break;
+                }
+            }
+            if ($found) continue;
+            
+            // 3) Fallback: slugify
+            $normalized[] = preg_replace('/[^a-z0-9]+/', '_', $h);
         }
         return $normalized;
     }
@@ -349,6 +384,8 @@ public function index(Request $request)
      */
     public function tvDashboard()
     {
+        set_time_limit(120);
+        
         $picMap = self::getPicMap();
         $pgDescriptions = self::PG_DESCRIPTIONS;
 
