@@ -160,32 +160,48 @@ class DashboardController extends Controller
     private function normalizeHeaders(array $row): array
     {
         $mapping = [
-            'purch.r' => 'pr_number', 'purch' => 'pr_number', 'pr' => 'pr_number',
-            'requisn' => 'requisitioner',
+            // PR Number variations
+            'purch.req.' => 'pr_number', 'purch.r' => 'pr_number', 'purch' => 'pr_number', 'pr' => 'pr_number',
+            // Requisitioner
+            'requisnr.' => 'requisitioner', 'requisn' => 'requisitioner',
+            // Item
             'item' => 'item_number',
+            // Short Text
             'short text' => 'short_text', 'short' => 'short_text',
+            // PO Number
             'po' => 'po_number',
+            // Flags
             'd' => 'deletion_flag',
             'gr' => 'gr_indicator',
             'ir' => 'ir_indicator',
-            'mater' => 'material',
-            'tracking' => 'tracking_number',
+            // Material & Tracking
+            'material' => 'material', 'mater' => 'material',
+            'trackingno' => 'tracking_number', 'tracking' => 'tracking_number',
+            // Purchasing Group & Org
             'pgr' => 'purchasing_group',
+            'porg' => 'purchasing_org',
+            // Single-char columns
             'i' => 'item_category',
             'a' => 'account_assignment',
+            // Release
             'rel' => 'release_indicator',
             'code' => 'release_code',
-            'release d' => 'release_date',
-            'porg' => 'purchasing_org',
+            'release' => 'release_date', 'release d' => 'release_date',
+            // Supplier
             'supplier' => 'supplier',
-            'supp. m' => 'supplied_material', 'supp' => 'supplied_material',
+            'supp. mat.' => 'supplied_material', 'supp. m' => 'supplied_material', 'supp' => 'supplied_material',
+            // Status
             'rs' => 'rs_status',
+            // Dates
             'req. date' => 'req_date', 'req.date' => 'req_date', 'req date' => 'req_date',
-            'quan' => 'quantity', 'qty' => 'quantity',
+            // Quantity & Unit
+            'quantity' => 'quantity', 'quan' => 'quantity', 'qty' => 'quantity',
             'un' => 'unit',
+            // PO Date & Time
             'po date' => 'po_date',
             'time' => 'po_time',
-            'croy' => 'currency', 'curr' => 'currency',
+            // Currency & Value
+            'crcy' => 'currency', 'croy' => 'currency', 'curr' => 'currency',
             'per' => 'per',
             'tot. value' => 'total_value', 'tot value' => 'total_value', 'total' => 'total_value',
         ];
@@ -193,7 +209,26 @@ class DashboardController extends Controller
         $normalized = [];
         foreach ($row as $header) {
             $h = strtolower(trim($header));
-            $normalized[] = $mapping[$h] ?? preg_replace('/[^a-z0-9]+/', '_', $h);
+            
+            // 1) Exact match
+            if (isset($mapping[$h])) {
+                $normalized[] = $mapping[$h];
+                continue;
+            }
+            
+            // 2) Prefix match (e.g. 'purch.req.' starts with 'purch')
+            $found = false;
+            foreach ($mapping as $key => $value) {
+                if (strlen($key) > 1 && str_starts_with($h, $key)) {
+                    $normalized[] = $value;
+                    $found = true;
+                    break;
+                }
+            }
+            if ($found) continue;
+            
+            // 3) Fallback: slugify
+            $normalized[] = preg_replace('/[^a-z0-9]+/', '_', $h);
         }
         return $normalized;
     }
@@ -258,6 +293,8 @@ class DashboardController extends Controller
 
     public function index(Request $request)
     {
+        set_time_limit(120);
+
         // 1. Overall KPIs
         $totalPR = PurchaseRequisition::count();
         
@@ -265,13 +302,9 @@ class DashboardController extends Controller
         $processedPO = PurchaseRequisition::whereNotNull('po_number')->where('po_number', '!=', '')->count();
         
         // Pending: No PO Number
-        $pendingPO = PurchaseRequisition::where(function($q) {
-            $q->whereNull('po_number')->orWhere('po_number', '');
-        })->count();
+        $pendingPO = $totalPR - $processedPO;
 
         // 2. Overdue Calculation
-        // Assuming "Overdue" means PR created > 20 days ago and still no PO.
-        // Adjust "20" based on business rules.
         $overdueDays = 20;
         $overduePR = PurchaseRequisition::where(function($q) {
                 $q->whereNull('po_number')->orWhere('po_number', '');
@@ -279,32 +312,15 @@ class DashboardController extends Controller
             ->where('req_date', '<', Carbon::now()->subDays($overdueDays))
             ->count();
 
-        // 3. Lead Time Calculation (Avg days to process)
-        // Logic: Same as chart - use po_release_date if available, else po_date.
-        // Since we need complex coalescing logic that might differ across DBs or use manual columns,
-        // and we already load the model, we can do this in PHP or raw SQL.
-        // For consistency and simplicity with the small dataset assumption:
-        
-        $completedPRs = PurchaseRequisition::where(function($q) {
-             $q->whereNotNull('po_date')->orWhereNotNull('po_release_date');
-        })->whereNotNull('req_date')->get();
-
-        $totalLeadTime = 0;
-        $count = 0;
-
-        foreach ($completedPRs as $pr) {
-            $end = $pr->po_release_date ?? $pr->po_date;
-            if ($end) {
-                 $endDate = is_string($end) ? Carbon::parse($end) : $end;
-                 $days = $pr->req_date->floatDiffInDays($endDate);
-                 if ($days >= 0) {
-                     $totalLeadTime += $days;
-                     $count++;
-                 }
-            }
-        }
-
-        $avgLeadTime = $count > 0 ? round($totalLeadTime / $count, 1) : 0;
+        // 3. Lead Time Calculation (optimized: raw SQL instead of loading all records)
+        $leadTimeResult = DB::selectOne("
+            SELECT AVG(DATEDIFF(COALESCE(po_release_date, po_date), req_date)) as avg_days
+            FROM purchase_requisitions
+            WHERE req_date IS NOT NULL
+              AND (po_date IS NOT NULL OR po_release_date IS NOT NULL)
+              AND DATEDIFF(COALESCE(po_release_date, po_date), req_date) >= 0
+        ");
+        $avgLeadTime = $leadTimeResult->avg_days ? round($leadTimeResult->avg_days, 1) : 0;
 
         // 4. Detailed Data for Table (Paginated)
         // CHECK SEARCH QUERY
@@ -331,15 +347,7 @@ class DashboardController extends Controller
                 ->paginate(20);
         }
 
-        // One-time Seed: Populate department if largely empty (for visualization)
-        if (PurchaseRequisition::count() > 0 && PurchaseRequisition::whereNull('department')->count() > 100) {
-            $depts = ['IT', 'HR', 'Production', 'Finance', 'Logistics', 'Procurement', 'Marketing', 'Maintenance'];
-            PurchaseRequisition::whereNull('department')->chunk(50, function ($prs) use ($depts) {
-                foreach ($prs as $pr) {
-                    $pr->update(['department' => $depts[array_rand($depts)]]);
-                }
-            });
-        }
+        // Department seed removed — departments are now assigned from purchasing_group during import
 
         // 6. Chart Data: Department Distribution (Line Chart)
         $deptChartData = $this->getDeptChartData();
@@ -403,6 +411,8 @@ class DashboardController extends Controller
      */
     public function tvDashboard()
     {
+        set_time_limit(120);
+        
         $picMap = self::getPicMap();
         $pgDescriptions = self::PG_DESCRIPTIONS;
 
