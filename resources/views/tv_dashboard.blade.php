@@ -157,25 +157,26 @@
             align-items: stretch;
         }
 
-        /* KPI CARD (Release / PR Open) */
+        /* KPI CARD (all 5 cards equal width) */
         .tv-kpi-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 1rem 1.25rem;
+            padding: 1rem 0.75rem;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 0.5rem;
-            width: 170px;
-            min-width: 170px;
+            flex: 1;
+            min-width: 0;
         }
         .tv-kpi-card .kpi-title {
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             font-weight: 700;
             display: flex;
             align-items: center;
             gap: 0.35rem;
+            text-align: center;
         }
         .tv-kpi-card .kpi-donut {
             position: relative;
@@ -205,33 +206,6 @@
             display: block;
             margin-top: 2px;
         }
-
-        /* PIPELINE */
-        .tv-pipeline {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.5rem;
-            padding: 0.5rem 0;
-        }
-        .tv-pipeline-card {
-            flex: 1;
-            background: var(--bg-card);
-            border: 3px solid;
-            border-radius: 12px;
-            padding: 1rem 0.5rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-width: 130px;
-            position: relative;
-        }
-        .tv-pipeline-card .pipe-title { font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem; }
-        .tv-pipeline-card .pipe-val { font-size: 1.75rem; font-weight: 800; line-height: 1.1; margin-top: 0.4rem; }
-        .tv-pipeline-card .pipe-kpi { font-size: 0.6rem; font-weight: 600; color: var(--text-secondary); letter-spacing: 0.5px; }
-        .tv-pipeline-card .pipe-sub { font-size: 0.65rem; color: var(--text-secondary); margin-top: 0.4rem; }
-        .tv-pipeline-arrow { display: flex; align-items: center; justify-content: center; width: 28px; }
 
         /* ===== DEPT GRID ===== */
         .tv-section-title {
@@ -444,43 +418,58 @@
                         <span style="font-size: 0.5rem; font-weight: 700; color: #f59e0b;">% PR</span>
                     </div>
                 </div>
-                <div class="kpi-total">Total PR: <strong id="tv_pr_open_val">-</strong></div>
+                <div style="display: flex; justify-content: space-between; width: 100%; font-size: 0.7rem; color: var(--text-secondary); padding: 0 0.5rem;">
+                    <div style="text-align: left;">
+                        Max Aging:
+                        <strong id="tv_pr_open_max_aging" style="font-size: 1rem; color: #ef4444; display: block; margin-top: 2px;">-</strong>
+                    </div>
+                    <div style="text-align: right;">
+                        Total PR:
+                        <strong id="tv_pr_open_val" style="font-size: 1rem; color: var(--text-primary); display: block; margin-top: 2px;">-</strong>
+                    </div>
+                </div>
             </div>
 
-            <!-- VISUAL PIPELINE -->
-            <div class="tv-pipeline">
-                <div class="tv-pipeline-card" style="border-color: #0284c7;">
-                    <div class="pipe-title">New Request</div>
-                    <div style="position: relative;">
-                        <i class="ph ph-file-text" style="color: #0284c7; font-size: 2rem;"></i>
-                        <i class="ph-fill ph-plus-circle" style="color: #0284c7; font-size: 1rem; position: absolute; bottom: -2px; right: -8px; background: var(--bg-card); border-radius: 50%;"></i>
+            <!-- PR FEEDBACK BY PURCHASING -->
+            <div class="tv-kpi-card" style="border-top: 3px solid #0284c7;">
+                <div class="kpi-title" style="color: #0284c7;">
+                    <i class="ph ph-chat-circle-text"></i> FB by Purchasing
+                </div>
+                <div class="kpi-donut" id="tv_fb_purch_donut" style="background: conic-gradient(#0284c7 0%, #334155 0);">
+                    <div class="inner">
+                        <span id="tv_fb_purch_pct" style="font-weight: 800; font-size: 1rem; color: #0284c7;">0%</span>
+                        <span style="font-size: 0.5rem; font-weight: 700; color: #0284c7;">% PR</span>
                     </div>
-                    <div class="pipe-val" id="tv_vp_masuk" style="color: #0284c7;">-</div>
-                    <div class="pipe-kpi">KPI</div>
-                    <div class="pipe-sub">Antrean Belum PO</div>
                 </div>
-                <div class="tv-pipeline-arrow">
-                    <svg viewBox="0 0 24 24" width="26" height="26" stroke="#0284c7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                <div class="kpi-total">Total PR: <strong id="tv_fb_purch_val">-</strong></div>
+            </div>
+
+            <!-- PR FEEDBACK BY USER -->
+            <div class="tv-kpi-card" style="border-top: 3px solid #8b5cf6;">
+                <div class="kpi-title" style="color: #8b5cf6;">
+                    <i class="ph ph-user-circle"></i> FB by User
                 </div>
-                <div class="tv-pipeline-card" style="border-color: #fbd38d;">
-                    <div class="pipe-title">In Process</div>
-                    <i class="ph ph-gear-six" style="color: #f59e0b; font-size: 2rem;"></i>
-                    <div class="pipe-val" id="tv_vp_proses" style="color: #f59e0b;">-</div>
-                    <div class="pipe-kpi">KPI</div>
-                    <div class="pipe-sub">F/U & Feedback</div>
-                </div>
-                <div class="tv-pipeline-arrow">
-                    <svg viewBox="0 0 24 24" width="26" height="26" stroke="#fbd38d" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                </div>
-                <div class="tv-pipeline-card" style="border-color: #22c55e;">
-                    <div class="pipe-title">Completed</div>
-                    <div style="background: #22c55e; border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">
-                        <i class="ph ph-check" style="color: #fff; font-size: 1.6rem;"></i>
+                <div class="kpi-donut" id="tv_fb_user_donut" style="background: conic-gradient(#8b5cf6 0%, #334155 0);">
+                    <div class="inner">
+                        <span id="tv_fb_user_pct" style="font-weight: 800; font-size: 1rem; color: #8b5cf6;">0%</span>
+                        <span style="font-size: 0.5rem; font-weight: 700; color: #8b5cf6;">% PR</span>
                     </div>
-                    <div class="pipe-val" id="tv_vp_released" style="color: #22c55e;">-</div>
-                    <div class="pipe-kpi">KPI</div>
-                    <div class="pipe-sub">PO Released</div>
                 </div>
+                <div class="kpi-total">Total PR: <strong id="tv_fb_user_val">-</strong></div>
+            </div>
+
+            <!-- PR SUDAH CLOSE -->
+            <div class="tv-kpi-card" style="border-top: 3px solid #22c55e;">
+                <div class="kpi-title" style="color: #22c55e;">
+                    <i class="ph ph-seal-check"></i> PR Closed
+                </div>
+                <div class="kpi-donut" id="tv_closed_donut" style="background: conic-gradient(#22c55e 0%, #334155 0);">
+                    <div class="inner">
+                        <span id="tv_closed_pct" style="font-weight: 800; font-size: 1rem; color: #22c55e;">0%</span>
+                        <span style="font-size: 0.5rem; font-weight: 700; color: #22c55e;">% PR</span>
+                    </div>
+                </div>
+                <div class="kpi-total">Total PR: <strong id="tv_closed_val">-</strong></div>
             </div>
         </div>
 
@@ -514,12 +503,12 @@
                 <div class="dept-pic"><i class="ph ph-user"></i> {{ $perf['pic'] }}</div>
                 <div class="dept-donut" style="background: conic-gradient({{ $circleColor }} {{ $val }}%, #334155 0);">
                     <div class="inner">
-                        <span style="font-weight: 800; font-size: 0.8rem; color: {{ $circleColor }};">{{ $val }}%</span>
+                        <span style="font-weight: 800; font-size: 1rem; color: {{ $circleColor }};">{{ $val }}%</span>
                         <span style="font-size: 0.45rem; font-weight: 700; color: {{ $circleColor }};">% PR</span>
                     </div>
                 </div>
-                <div class="dept-amount">
-                    Amount: <strong style="color: #f59e0b;">{{ number_format($perf['amount'] / 1000000, 1, ',', '.') }} Juta (Rp)</strong>
+                <div class="dept-amount" style="font-size: 0.65rem;">
+                    Amount: <strong style="color: #ef4444; font-size: 1rem;">{{ number_format($perf['amount'] / 1000000, 1, ',', '.') }} JT</strong>
                 </div>
                 <div class="dept-bars">
                     @foreach($bars as $bar)
@@ -565,15 +554,39 @@
                     const open = data.status_cards?.pr_open;
                     if (open) {
                         document.getElementById('tv_pr_open_val').textContent = open.count.toLocaleString();
+                        if (document.getElementById('tv_pr_open_max_aging')) {
+                            document.getElementById('tv_pr_open_max_aging').textContent = open.max_aging + ' hari';
+                        }
                         document.getElementById('tv_pr_open_pct').textContent = open.percentage + '%';
                         document.getElementById('tv_pr_open_donut').style.background =
                             `conic-gradient(#f59e0b ${open.percentage}%, #334155 0)`;
                     }
                     if (data.global_breakdown) {
-                        document.getElementById('tv_vp_masuk').textContent = data.global_breakdown.belum_po.toLocaleString();
-                        document.getElementById('tv_vp_proses').textContent =
-                            (data.global_breakdown.follow_up + data.global_breakdown.need_feedback + data.global_breakdown.sudah_feedback).toLocaleString();
-                        document.getElementById('tv_vp_released').textContent = data.global_breakdown.released.toLocaleString();
+                        const total = data.total || 1;
+
+                        // PR Feedback by Purchasing (need_feedback = waiting)
+                        const fbPurch = data.global_breakdown.need_feedback || 0;
+                        const fbPurchPct = total > 0 ? Math.round((fbPurch / total) * 100 * 10) / 10 : 0;
+                        document.getElementById('tv_fb_purch_val').textContent = fbPurch.toLocaleString();
+                        document.getElementById('tv_fb_purch_pct').textContent = fbPurchPct + '%';
+                        document.getElementById('tv_fb_purch_donut').style.background =
+                            `conic-gradient(#0284c7 ${fbPurchPct}%, #334155 0)`;
+
+                        // PR Feedback by User (sudah_feedback = responded)
+                        const fbUser = data.global_breakdown.sudah_feedback || 0;
+                        const fbUserPct = total > 0 ? Math.round((fbUser / total) * 100 * 10) / 10 : 0;
+                        document.getElementById('tv_fb_user_val').textContent = fbUser.toLocaleString();
+                        document.getElementById('tv_fb_user_pct').textContent = fbUserPct + '%';
+                        document.getElementById('tv_fb_user_donut').style.background =
+                            `conic-gradient(#8b5cf6 ${fbUserPct}%, #334155 0)`;
+
+                        // PR Closed (di feedback purchasing + sudah di feedback user)
+                        const closed = fbPurch + fbUser;
+                        const closedPct = total > 0 ? Math.round((closed / total) * 100 * 10) / 10 : 0;
+                        document.getElementById('tv_closed_val').textContent = closed.toLocaleString();
+                        document.getElementById('tv_closed_pct').textContent = closedPct + '%';
+                        document.getElementById('tv_closed_donut').style.background =
+                            `conic-gradient(#22c55e ${closedPct}%, #334155 0)`;
                     }
                     // Flash bar indicator
                     const flash = document.createElement('div');

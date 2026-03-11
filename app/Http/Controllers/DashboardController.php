@@ -599,44 +599,40 @@ public function index(Request $request)
 
     public function getTimelineData()
     {
-        // Fetch ALL PRs to calculate stage averages independently
-        $prs = PurchaseRequisition::with('comments')->cursor();
+        set_time_limit(180);
+
+        // Only load PRs that have comments (for timeline stage averages)
+        // This dramatically reduces the dataset from 54K to only PRs with interactions
+        $prs = PurchaseRequisition::has('comments')
+            ->with(['comments' => fn($q) => $q->orderBy('created_at')])
+            ->select(['id', 'req_date', 'po_date', 'po_release_date'])
+            ->get();
         
         $durations = [
-            'feedback' => [], // Created -> First Comment
-            'response' => [], // First Comment -> Second Comment
-            'release' => []   // Second Comment (or Created) -> PO Release
+            'feedback' => [],
+            'response' => [],
+            'release' => []
         ];
 
         foreach ($prs as $pr) {
             $created = $pr->req_date;
-            // Get comments sorted by date (already sorted in relation)
             $comments = $pr->comments; 
             
             $firstComment = $comments->first();
             $secondComment = $comments->count() > 1 ? $comments->get(1) : null;
             $released = $pr->po_release_date ?? $pr->po_date; 
 
-            // 1. Created -> Feedback
             if ($firstComment && $created) {
-                // Use floatDiffInDays to capture partial days (e.g. 0.5 days)
                 $days = $created->floatDiffInDays($firstComment->created_at);
                 if ($days >= 0) $durations['feedback'][] = $days;
             }
 
-            // 2. Feedback -> Response
             if ($firstComment && $secondComment) {
-                // Use floatDiffInDays for same-day responses
                 $days = $firstComment->created_at->floatDiffInDays($secondComment->created_at);
                 if ($days >= 0) $durations['response'][] = $days;
             }
 
-            // 3. Response -> Released
             if ($released) {
-                // User wants only PRs with chat interactions.
-                // So strictly look for 2nd comment (Response) or 1st comment (Feedback).
-                // If NO comments exist, we do NOT count this towards the average.
-                
                 $startPoint = $secondComment ? $secondComment->created_at : 
                              ($firstComment ? $firstComment->created_at : null); 
                 
@@ -649,25 +645,19 @@ public function index(Request $request)
             }
         }
 
-        // Calculate Averages based on OCCURRENCE (Specific Count)
-        // This answers: information "When X happens, how long does it take?"
-        // We filter strictly for PRs that had the specific interaction.
-
         $avgFeedback = count($durations['feedback']) > 0 ? array_sum($durations['feedback']) / count($durations['feedback']) : 0;
         $avgResponse = count($durations['response']) > 0 ? array_sum($durations['response']) / count($durations['response']) : 0;
         $avgRelease = count($durations['release']) > 0 ? array_sum($durations['release']) / count($durations['release']) : 0;
 
-        // --- New: Custom Lead Time Trend (2024, 2025, 2026 Monthly) ---
+        // --- Lead Time Trend: use SQL per bucket instead of loading all PRs ---
         $trendDates = [];
         $trendValues = [];
 
-        // Define the buckets we want
         $buckets = [
             '2024' => ['start' => '2024-01-01', 'end' => '2024-12-31'],
             '2025' => ['start' => '2025-01-01', 'end' => '2025-12-31'],
         ];
         
-        // Add months for 2026 (Jan to Dec)
         for ($m = 1; $m <= 12; $m++) {
             $date = Carbon::create(2026, $m, 1);
             $buckets[$date->format('M 26')] = [
@@ -676,41 +666,19 @@ public function index(Request $request)
             ];
         }
 
-        // Fetch ALL relevant PRs to process in PHP (simpler than complex SQL union)
-        // We need PRs completed since 2024-01-01
-        $allPrs = PurchaseRequisition::select('req_date', 'po_date', 'po_release_date')
-            ->where(function($query) {
-                $query->where('po_release_date', '>=', '2024-01-01')
-                      ->orWhere('po_date', '>=', '2024-01-01');
-            })
-            ->get();
-
         foreach ($buckets as $label => $range) {
             $trendDates[] = $label;
             
-            $totalDays = 0;
-            $count = 0;
-
-            foreach ($allPrs as $pr) {
-                $end = $pr->po_release_date ?? $pr->po_date;
-                
-                if ($end) {
-                    $endDate = is_string($end) ? Carbon::parse($end) : $end;
-                    
-                    // Check if this PR belongs in this bucket
-                    if ($endDate->between($range['start'], $range['end'])) {
-                         if ($pr->req_date) {
-                             $diff = $pr->req_date->floatDiffInDays($endDate);
-                             if ($diff >= 0) {
-                                 $totalDays += $diff;
-                                 $count++;
-                             }
-                        }
-                    }
-                }
-            }
+            $result = DB::selectOne("
+                SELECT AVG(DATEDIFF(COALESCE(po_release_date, po_date), req_date)) as avg_days
+                FROM purchase_requisitions
+                WHERE req_date IS NOT NULL
+                  AND (po_date IS NOT NULL OR po_release_date IS NOT NULL)
+                  AND COALESCE(po_release_date, po_date) BETWEEN ? AND ?
+                  AND DATEDIFF(COALESCE(po_release_date, po_date), req_date) >= 0
+            ", [$range['start'], $range['end']]);
             
-            $trendValues[] = $count > 0 ? round($totalDays / $count, 1) : 0;
+            $trendValues[] = $result->avg_days ? round($result->avg_days, 1) : 0;
         }
 
         return response()->json([
@@ -822,11 +790,19 @@ public function index(Request $request)
      */
     public function getSmartCardData(Request $request)
     {
+        set_time_limit(180);
+        
         $overdueDays = 20;
         $slaDays = 7;
 
         // === Build base query with filters ===
-        $query = PurchaseRequisition::query();
+        $query = PurchaseRequisition::query()
+            ->select([
+                'id', 'pr_number', 'purchasing_group', 'po_number', 'po_date',
+                'po_release_date', 'req_date', 'total_value', 'quantity',
+                'short_text', 'feedback_status',
+            ])
+            ->selectRaw('DATEDIFF(CURDATE(), req_date) as _age');
 
         // Filter: Period
         if ($request->filled('date_from')) {
@@ -865,8 +841,7 @@ public function index(Request $request)
 
         foreach ($allPRs as $pr) {
             $hasPO = !empty($pr->po_number);
-            $age = $pr->req_date ? (int) $pr->req_date->diffInDays(now()) : 0;
-            $pr->_age = $age;
+            $age = (int) ($pr->_age ?? 0);
             $pr->_pic = self::getPicMap()[$pr->purchasing_group] ?? 'Unassigned';
 
             if ($hasPO) {
@@ -885,7 +860,9 @@ public function index(Request $request)
         // === Status Card Summaries ===
         $statusCards = [];
         $releasedCount = $categorized['released']->count();
-        $prOpenCount = $totalCount - $releasedCount;
+        $prOpenPRs = $allPRs->filter(fn($pr) => empty($pr->po_number));
+        $prOpenCount = $prOpenPRs->count();
+        $maxAgingOpen = $prOpenPRs->max('_age') ?? 0;
 
         $statusCards['released'] = [
             'label' => 'Release',
@@ -899,6 +876,7 @@ public function index(Request $request)
             'label' => 'PR Open',
             'count' => $prOpenCount,
             'percentage' => $totalCount > 0 ? round(($prOpenCount / $totalCount) * 100, 1) : 0,
+            'max_aging' => $maxAgingOpen,
             'color' => '#f59e0b',
             'icon' => 'ph-folder-open',
         ];

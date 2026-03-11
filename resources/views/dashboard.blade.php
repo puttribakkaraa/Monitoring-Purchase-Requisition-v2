@@ -1161,16 +1161,16 @@
         </div>
 
         <!-- ===== SMART SUMMARY CARDS ===== -->
-        <div class="smart-cards-grid" id="smartCardsGrid" style="display: flex; justify-content: flex-start; gap: 1.5rem;">
+        <div class="smart-cards-grid" id="smartCardsGrid" style="display: flex; align-items: stretch; gap: 1rem; margin-bottom: 1.5rem;">
             
             <!-- RELEASE CARD -->
-            <div class="smart-card" data-status="released" onclick="openSplitView('released')" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; gap: 0.75rem; transition: transform 0.2s, box-shadow 0.2s; position: relative; width: 180px; cursor: pointer; border-top: 3px solid #10b981;"
+            <div class="smart-card" data-status="released" onclick="openSplitView('released')" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; gap: 0.75rem; transition: transform 0.2s, box-shadow 0.2s; position: relative; flex: 1; min-width: 0; cursor: pointer; border-top: 3px solid #10b981;"
                  onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
                  onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
                 
                 <div style="text-align: center; width: 100%;">
-                    <div style="font-size: 1rem; font-weight: 700; color: #10b981; display:flex; align-items:center; justify-content:center; gap:0.4rem;">
-                        <i class="ph ph-check-circle"></i> Release
+                    <div style="font-size: 0.9rem; font-weight: 700; color: #10b981; display:flex; align-items:center; justify-content:center; gap:0.4rem;">
+                        <i class="ph ph-check-circle"></i> PR Release PO
                     </div>
                 </div>
 
@@ -1189,12 +1189,12 @@
             </div>
 
             <!-- PR OPEN CARD -->
-            <div class="smart-card cursor-default" data-status="pr_open" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; gap: 0.75rem; transition: transform 0.2s, box-shadow 0.2s; position: relative; width: 180px; cursor: default; border-top: 3px solid #f59e0b;"
+            <div class="smart-card cursor-default" data-status="pr_open" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; gap: 0.75rem; transition: transform 0.2s, box-shadow 0.2s; position: relative; flex: 1; min-width: 0; cursor: default; border-top: 3px solid #f59e0b;"
                  onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
                  onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
                  
                 <div style="text-align: center; width: 100%;">
-                    <div style="font-size: 1rem; font-weight: 700; color: #f59e0b; display:flex; align-items:center; justify-content:center; gap:0.4rem;">
+                    <div style="font-size: 0.9rem; font-weight: 700; color: #f59e0b; display:flex; align-items:center; justify-content:center; gap:0.4rem;">
                         <i class="ph ph-folder-open"></i> PR Open
                     </div>
                 </div>
@@ -1207,63 +1207,87 @@
                     </div>
                 </div>
 
-                <div style="font-size: 0.75rem; color: var(--text-secondary); text-align: center; width: 100%;">
-                    Total PR: <strong id="sc_pr_open_val" style="color: var(--text-primary); font-size: 1.1rem; display:block; margin-top:2px;">-</strong>
+                <div style="display: flex; justify-content: space-between; width: 100%; font-size: 0.75rem; color: var(--text-secondary); align-items: flex-end; padding: 0 0.5rem;">
+                    <div style="text-align: left;">
+                        Max Aging: <strong id="sc_pr_open_max_aging" style="color: #ef4444; font-size: 1.1rem; display:block; margin-top:2px;">-</strong>
+                    </div>
+                    <div style="text-align: right;">
+                        Total PR: <strong id="sc_pr_open_val" style="color: var(--text-primary); font-size: 1.1rem; display:block; margin-top:2px;">-</strong>
+                    </div>
                 </div>
                 <div id="sc_pr_open_pct" style="display:none;"></div>
             </div>
 
-            <!-- VISUAL PIPELINE (OPSI 2 - PROFESSIONAL MATCH) -->
-            <div id="visualPipelineSection" style="flex: 1; display: none; background: transparent; padding: 0.5rem 0; position: relative; align-items: center; justify-content: space-between; gap: 0.5rem;">
-                
-                <!-- CARD 1: New Request -->
-                <div style="flex: 1; background: #ffffff; border: 3px solid #0284c7; border-radius: 12px; padding: 1.25rem 0.5rem; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); position: relative; min-width: 140px;">
-                    <div style="font-size: 0.85rem; font-weight: 700; color: #1e293b; margin-bottom: 0.75rem;">New Request</div>
-                    <div style="position: relative; margin-bottom: 0.5rem;">
-                        <i class="ph ph-file-text" style="color: #0284c7; font-size: 2.5rem;"></i>
-                        <i class="ph-fill ph-plus-circle" style="color: #0284c7; font-size: 1.2rem; position: absolute; bottom: -2px; right: -8px; background: white; border-radius: 50%;"></i>
+            <!-- PR FEEDBACK BY PURCHASING -->
+            <div class="smart-card cursor-pointer" data-status="feedback" onclick="openSplitView('feedback')" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; gap: 0.75rem; transition: transform 0.2s, box-shadow 0.2s; position: relative; flex: 1; min-width: 0; cursor: pointer; border-top: 3px solid #0284c7;"
+                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
+                 onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
+                 
+                <div style="text-align: center; width: 100%;">
+                    <div style="font-size: 0.9rem; font-weight: 700; color: #0284c7; display:flex; align-items:center; justify-content:center; gap:0.4rem;">
+                        <i class="ph ph-chat-circle-text"></i> Jumlah FB by Purchasing
                     </div>
-                    <div id="vp_masuk_val" style="font-size: 2rem; font-weight: 800; color: #0284c7; line-height: 1.1; margin-top: 0.5rem;">-</div>
-                    <div style="font-size: 0.65rem; font-weight: 600; color: #64748b; letter-spacing: 0.5px;">KPI</div>
-                    <div style="position: absolute; bottom: -22px; width: 100%; text-align: center; font-size: 0.7rem; color: #475569;">Antrean Belum PO</div>
                 </div>
 
-                <!-- ARROW 1 -->
-                <div style="display: flex; align-items: center; justify-content: center; width: 30px;">
-                    <svg viewBox="0 0 24 24" width="30" height="30" stroke="#0284c7" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                </div>
-
-                <!-- CARD 2: In Process -->
-                <div style="flex: 1; background: #ffffff; border: 3px solid #fbd38d; border-radius: 12px; padding: 1.25rem 0.5rem; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); position: relative; min-width: 140px;">
-                    <div style="font-size: 0.85rem; font-weight: 700; color: #1e293b; margin-bottom: 0.75rem;">In Process</div>
-                    <div style="position: relative; margin-bottom: 0.5rem;">
-                        <i class="ph ph-gear-six" style="color: #f59e0b; font-size: 2.5rem;"></i>
+                <!-- Circle Chart -->
+                <div id="sc_fb_purchasing_circle" style="position: relative; width: 85px; height: 85px; border-radius: 50%; background: conic-gradient(#0284c7 0%, #e5e7eb 0); margin: 0.25rem 0;">
+                    <div style="position: absolute; top: 8px; left: 8px; right: 8px; bottom: 8px; background: var(--bg-card); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1;">
+                        <span id="sc_fb_purchasing_circle_pct" style="font-weight: 800; font-size: 1.05rem; color: #0284c7;">0%</span>
+                        <span style="font-size: 0.55rem; font-weight: 700; color: #0284c7;">% PR</span>
                     </div>
-                    <div id="vp_proses_val" style="font-size: 2rem; font-weight: 800; color: #f59e0b; line-height: 1.1; margin-top: 0.5rem;">-</div>
-                    <div style="font-size: 0.65rem; font-weight: 600; color: #64748b; letter-spacing: 0.5px;">KPI</div>
-                    <div style="position: absolute; bottom: -22px; width: 100%; text-align: center; font-size: 0.7rem; color: #475569;">F/U & Feedback</div>
                 </div>
 
-                <!-- ARROW 2 -->
-                <div style="display: flex; align-items: center; justify-content: center; width: 30px;">
-                    <svg viewBox="0 0 24 24" width="30" height="30" stroke="#fbd38d" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
+                <div style="font-size: 0.75rem; color: var(--text-secondary); text-align: center; width: 100%;">
+                    Total PR: <strong id="sc_fb_purchasing_val" style="color: var(--text-primary); font-size: 1.1rem; display:block; margin-top:2px;">-</strong>
                 </div>
+            </div>
 
-                <!-- CARD 3: Completed -->
-                <div style="flex: 1; background: #ffffff; border: 3px solid #22c55e; border-radius: 12px; padding: 1.25rem 0.5rem; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); position: relative; min-width: 140px;">
-                    <div style="font-size: 0.85rem; font-weight: 700; color: #1e293b; margin-bottom: 0.75rem;">Completed</div>
-                    <div style="position: relative; margin-bottom: 0.5rem; background: #22c55e; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
-                        <i class="ph ph-check" style="color: #ffffff; font-size: 1.8rem; stroke-width: 2px;"></i>
+            <!-- PR FEEDBACK BY USER -->
+            <div class="smart-card cursor-pointer" data-status="sudah_feedback" onclick="openSplitView('sudah_feedback')" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; gap: 0.75rem; transition: transform 0.2s, box-shadow 0.2s; position: relative; flex: 1; min-width: 0; cursor: pointer; border-top: 3px solid #8b5cf6;"
+                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
+                 onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
+                 
+                <div style="text-align: center; width: 100%;">
+                    <div style="font-size: 0.9rem; font-weight: 700; color: #8b5cf6; display:flex; align-items:center; justify-content:center; gap:0.4rem;">
+                        <i class="ph ph-user-circle"></i> Jumlah FB by User
                     </div>
-                    <div id="vp_released_val" style="font-size: 2rem; font-weight: 800; color: #22c55e; line-height: 1.1; margin-top: 0.5rem;">-</div>
-                    <div style="font-size: 0.65rem; font-weight: 600; color: #64748b; letter-spacing: 0.5px;">KPI</div>
-                    <div style="position: absolute; bottom: -22px; width: 100%; text-align: center; font-size: 0.7rem; color: #475569;">PO Released</div>
                 </div>
 
+                <!-- Circle Chart -->
+                <div id="sc_fb_user_circle" style="position: relative; width: 85px; height: 85px; border-radius: 50%; background: conic-gradient(#8b5cf6 0%, #e5e7eb 0); margin: 0.25rem 0;">
+                    <div style="position: absolute; top: 8px; left: 8px; right: 8px; bottom: 8px; background: var(--bg-card); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1;">
+                        <span id="sc_fb_user_circle_pct" style="font-weight: 800; font-size: 1.05rem; color: #8b5cf6;">0%</span>
+                        <span style="font-size: 0.55rem; font-weight: 700; color: #8b5cf6;">% PR</span>
+                    </div>
+                </div>
+
+                <div style="font-size: 0.75rem; color: var(--text-secondary); text-align: center; width: 100%;">
+                    Total PR: <strong id="sc_fb_user_val" style="color: var(--text-primary); font-size: 1.1rem; display:block; margin-top:2px;">-</strong>
+                </div>
+            </div>
+
+            <!-- PR CLOSED -->
+            <div class="smart-card cursor-pointer" data-status="closed" onclick="openSplitView('closed')" style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; gap: 0.75rem; transition: transform 0.2s, box-shadow 0.2s; position: relative; flex: 1; min-width: 0; cursor: pointer; border-top: 3px solid #22c55e;"
+                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
+                 onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
+                 
+                <div style="text-align: center; width: 100%;">
+                    <div style="font-size: 0.9rem; font-weight: 700; color: #22c55e; display:flex; align-items:center; justify-content:center; gap:0.4rem;">
+                        <i class="ph ph-seal-check"></i> Jumlah PR Closed  
+                    </div>
+                </div>
+
+                <!-- Circle Chart -->
+                <div id="sc_closed_circle" style="position: relative; width: 85px; height: 85px; border-radius: 50%; background: conic-gradient(#22c55e 0%, #e5e7eb 0); margin: 0.25rem 0;">
+                    <div style="position: absolute; top: 8px; left: 8px; right: 8px; bottom: 8px; background: var(--bg-card); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1;">
+                        <span id="sc_closed_circle_pct" style="font-weight: 800; font-size: 1.05rem; color: #22c55e;">0%</span>
+                        <span style="font-size: 0.55rem; font-weight: 700; color: #22c55e;">% PR</span>
+                    </div>
+                </div>
+
+                <div style="font-size: 0.75rem; color: var(--text-secondary); text-align: center; width: 100%;">
+                    Total PR: <strong id="sc_closed_val" style="color: var(--text-primary); font-size: 1.1rem; display:block; margin-top:2px;">-</strong>
+                </div>
             </div>
 
         </div>
@@ -1308,7 +1332,7 @@
                         ['label' => 'Sudah Feedback', 'val' => $perf['sudah_feedback'], 'color' => '#06b6d4', 'key' => 'sudah_feedback'],
                     ];
                 @endphp
-                <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 0.6rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; gap: 0.75rem; transition: transform 0.2s, box-shadow 0.2s; position: relative;"
+                <div onclick="openSplitView('follow_up', '{{ $deptCode }}')" style="background: var(--bg-card); cursor: pointer; border: 1px solid var(--border); border-radius: 6px; padding: 1rem 0.6rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; gap: 0.75rem; transition: transform 0.2s, box-shadow 0.2s; position: relative;"
                      onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
                      onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';">
                     
@@ -1336,14 +1360,14 @@
                     <!-- Circle Chart -->
                     <div style="position: relative; width: 75px; height: 75px; border-radius: 50%; background: conic-gradient({{ $circleColor }} {{ $val }}%, #e5e7eb 0); margin: 0.25rem 0;">
                         <div style="position: absolute; top: 7px; left: 7px; right: 7px; bottom: 7px; background: var(--bg-card); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1;">
-                            <span style="font-weight: 800; font-size: 0.85rem; color: {{ $circleColor }};">{{ $val }}%</span>
+                            <span style="font-weight: 800; font-size: 1rem; color: {{ $circleColor }};">{{ $val }}%</span>
                             <span style="font-size: 0.5rem; font-weight: 700; color: {{ $circleColor }};">% PR</span>
                         </div>
                     </div>
 
                     <!-- Amount -->
-                    <div style="font-size: 0.6rem; color: var(--text-secondary); text-align: center; width: 100%; margin-bottom: 0.25rem;">
-                        Amount: <strong style="color: var(--warning);">{{ number_format($perf['amount'] / 1000000, 1, ',', '.') }} Juta (Rp)</strong>
+                    <div style="font-size: 0.65rem; color: var(--text-secondary); text-align: center; width: 100%; margin-bottom: 0.25rem;">
+                        Amount: <strong style="color: #ef4444; font-size: 1rem;">{{ number_format($perf['amount'] / 1000000, 1, ',', '.') }} JT</strong>
                     </div>
 
                     <!-- Progress Bars -->
@@ -2469,6 +2493,9 @@
                         const card = data.status_cards[k];
                         if (card) {
                             document.getElementById(`sc_${k}_val`).textContent = card.count.toLocaleString();
+                            if (k === 'pr_open' && document.getElementById('sc_pr_open_max_aging')) {
+                                document.getElementById('sc_pr_open_max_aging').textContent = card.max_aging + ' hari';
+                            }
                             
                             const pctEl = document.getElementById(`sc_${k}_pct`);
                             if (pctEl) pctEl.textContent = `${card.percentage}% dari total (${data.total})`;
@@ -2481,14 +2508,39 @@
                             }
                         }
                     });
-                    // Render Visual Pipeline (Opsi 2)
+                    // Render Feedback Cards
                     if (data.global_breakdown) {
-                        const vpSec = document.getElementById('visualPipelineSection');
-                        if (vpSec) vpSec.style.display = 'flex';
-                        
-                        document.getElementById('vp_masuk_val').textContent = data.global_breakdown.belum_po.toLocaleString();
-                        document.getElementById('vp_proses_val').textContent = (data.global_breakdown.follow_up + data.global_breakdown.need_feedback + data.global_breakdown.sudah_feedback).toLocaleString();
-                        document.getElementById('vp_released_val').textContent = data.global_breakdown.released.toLocaleString();
+                        const total = data.total || 1;
+
+                        // PR Feedback by Purchasing (need_feedback)
+                        const fbPurch = data.global_breakdown.need_feedback || 0;
+                        const fbPurchPct = total > 0 ? Math.round((fbPurch / total) * 100 * 10) / 10 : 0;
+                        document.getElementById('sc_fb_purchasing_val').textContent = fbPurch.toLocaleString();
+                        document.getElementById('sc_fb_purchasing_circle_pct').textContent = fbPurchPct + '%';
+                        if (document.getElementById('sc_fb_purchasing_circle')) {
+                            document.getElementById('sc_fb_purchasing_circle').style.background = 
+                                `conic-gradient(#0284c7 ${fbPurchPct}%, #e5e7eb 0)`;
+                        }
+
+                        // PR Feedback by User (sudah_feedback)
+                        const fbUser = data.global_breakdown.sudah_feedback || 0;
+                        const fbUserPct = total > 0 ? Math.round((fbUser / total) * 100 * 10) / 10 : 0;
+                        document.getElementById('sc_fb_user_val').textContent = fbUser.toLocaleString();
+                        document.getElementById('sc_fb_user_circle_pct').textContent = fbUserPct + '%';
+                        if (document.getElementById('sc_fb_user_circle')) {
+                            document.getElementById('sc_fb_user_circle').style.background = 
+                                `conic-gradient(#8b5cf6 ${fbUserPct}%, #e5e7eb 0)`;
+                        }
+
+                        // PR Closed (di feedback purchasing + sudah di feedback user)
+                        const closed = fbPurch + fbUser;
+                        const closedPct = total > 0 ? Math.round((closed / total) * 100 * 10) / 10 : 0;
+                        document.getElementById('sc_closed_val').textContent = closed.toLocaleString();
+                        document.getElementById('sc_closed_circle_pct').textContent = closedPct + '%';
+                        if (document.getElementById('sc_closed_circle')) {
+                             document.getElementById('sc_closed_circle').style.background = 
+                                `conic-gradient(#22c55e ${closedPct}%, #e5e7eb 0)`;
+                        }
                     }
                 })
                 .catch(err => console.error('Smart card error:', err));
@@ -2505,7 +2557,7 @@
             document.querySelectorAll('.smart-card').forEach(c => c.classList.remove('active'));
             document.querySelector(`.smart-card[data-status="${status}"]`)?.classList.add('active');
 
-            const labels = { follow_up:'F/U Purchasing', feedback:'Need Feedback', released:'PR Release', overdue:'Overdue', no_status:'Tanpa Status', sudah_fu:'Sudah Follow-up', sudah_feedback:'Sudah Feedback' };
+            const labels = { follow_up:'F/U Purchasing', feedback:'Need Feedback', released:'PR Release', overdue:'Overdue', no_status:'Tanpa Status', sudah_fu:'Sudah Follow-up', sudah_feedback:'Sudah Feedback', closed:'PR Closed' };
             document.getElementById('splitTitle').innerHTML = `<i class="ph ph-chart-bar"></i> ${labels[status]} — Detail per Departemen`;
 
             // Build dept tabs
@@ -2616,8 +2668,8 @@
 
             const riskColors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444' };
             const slaColor = d.sla.percentage >= 80 ? '#10b981' : d.sla.percentage >= 50 ? '#f59e0b' : '#ef4444';
-            const colors = { follow_up:'#f59e0b', feedback:'#3b82f6', released:'#10b981', overdue:'#ef4444', no_status:'#64748b', sudah_fu:'#8b5cf6', sudah_feedback:'#06b6d4' };
-            const labels = { follow_up:'F/U Purchasing', feedback:'Need Feedback', released:'PR Release', overdue:'Overdue', no_status:'Tanpa Status', sudah_fu:'Sudah F/U', sudah_feedback:'Sudah Feedback' };
+            const colors = { follow_up:'#f59e0b', feedback:'#3b82f6', released:'#10b981', overdue:'#ef4444', no_status:'#64748b', sudah_fu:'#8b5cf6', sudah_feedback:'#06b6d4', closed:'#22c55e' };
+            const labels = { follow_up:'F/U Purchasing', feedback:'Need Feedback', released:'PR Release', overdue:'Overdue', no_status:'Tanpa Status', sudah_fu:'Sudah F/U', sudah_feedback:'Sudah Feedback', closed:'PR Closed' };
 
             let html = `
             <!-- PIC Info -->
@@ -2630,8 +2682,11 @@
                     <div style="font-size:0.75rem;color:var(--text-secondary);">PIC ${dept} · Kontribusi: ${d.contribution}% dari total</div>
                 </div>
                 <div style="margin-left:auto;text-align:right;">
-                    <div style="font-size:0.75rem;color:var(--text-secondary);">Total PR</div>
-                    <div style="font-weight:700;">${Number(d.total).toLocaleString('id-ID')}</div>
+                    <div style="font-size:0.75rem;color:var(--text-secondary);">PR Belum PO</div>
+                    <div style="font-weight:700;">${Number(d.without_po).toLocaleString('id-ID')}</div>
+                    
+                    <div style="font-size:0.75rem;color:var(--text-secondary); margin-top:0.5rem;">Amount Belum PO</div>
+                    <div style="font-weight:700; color: #ef4444;">${formatRupiah(d.nominal.belum_po)}</div>
                 </div>
             </div>
 
@@ -2716,8 +2771,8 @@
             </div>`;
             }
 
-            // Action Required PRs: show for follow_up, feedback, sudah_fu, sudah_feedback
-            if (['follow_up','feedback','sudah_fu','sudah_feedback'].includes(activeStatus)) {
+            // Action Required PRs: show for follow_up, feedback, sudah_fu, sudah_feedback, closed
+            if (['follow_up','feedback','sudah_fu','sudah_feedback','closed'].includes(activeStatus)) {
                 // Show all pending PO PRs for this department
                 const prList = d.action_req_prs || [];
                 
@@ -2726,6 +2781,7 @@
                 if (activeStatus === 'feedback') filteredList = prList.filter(p => p.feedback_status === 'waiting');
                 if (activeStatus === 'sudah_fu') filteredList = prList.filter(p => p.feedback_status === 'responded' || p.feedback_status === 'waiting');
                 if (activeStatus === 'sudah_feedback') filteredList = prList.filter(p => p.feedback_status === 'responded');
+                if (activeStatus === 'closed') filteredList = prList.filter(p => p.feedback_status === 'responded' || p.feedback_status === 'waiting');
                 
                 const iconColor = colors[activeStatus] || '#f59e0b';
                 const iconClass = activeStatus === 'follow_up' ? 'ph-phone-outgoing' : (activeStatus === 'feedback' ? 'ph-chat-dots' : 'ph-check-circle');
