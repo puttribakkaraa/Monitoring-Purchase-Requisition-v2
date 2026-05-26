@@ -25,6 +25,9 @@ class PurchaseRequisitionImport implements ToCollection
         'DAH' => 'OTHERS',
     ];
 
+    private $cachedUser = null;
+    private $hasCheckedUser = false;
+
     public function collection(Collection $rows)
     {
         $headerRow = null;
@@ -104,7 +107,11 @@ class PurchaseRequisitionImport implements ToCollection
             // If PR exists and previously had no PO
             if ($existingPr && empty($existingPr->po_number)) {
                 // Trigger Notification
-                $user = \App\Models\User::first();
+                if (!$this->hasCheckedUser) {
+                    $this->cachedUser = \App\Models\User::first();
+                    $this->hasCheckedUser = true;
+                }
+                $user = $this->cachedUser;
                 if ($user) {
                     $user->notify(new \App\Notifications\PrConvertedToPoNotification([
                         'pr_number' => $prNumber,
